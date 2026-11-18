@@ -6,11 +6,11 @@
   <title>김천다수초등학교 과학실 주사위 게임</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Fonts: Jua & Noto Sans KR (초등학생 가독성 및 친근한 폰트) -->
+  <!-- Google Fonts: Jua & Noto Sans KR -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
-  
+
   <style>
     body {
       font-family: 'Noto Sans KR', sans-serif;
@@ -28,11 +28,13 @@
       width: 140px;
       height: 140px;
       perspective: 600px;
+      --tz: 70px;
     }
     @media (min-width: 768px) {
       .dice-scene {
         width: 170px;
         height: 170px;
+        --tz: 85px;
       }
     }
     .dice-cube {
@@ -69,15 +71,11 @@
       height: 100%;
       border-radius: 50%;
       background-color: #1e293b;
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
     }
     .dot.red {
       background-color: #ef4444;
     }
-
-    /* 주사위 6면 배치 (140px 기준 translateZ 70px, CSS 변수로 반응형 대응) */
-    .dice-scene { --tz: 70px; }
-    @media (min-width: 768px) { .dice-scene { --tz: 85px; } }
 
     .face-1 { transform: rotateY(0deg) translateZ(var(--tz)); }
     .face-2 { transform: rotateY(90deg) translateZ(var(--tz)); }
@@ -86,7 +84,6 @@
     .face-5 { transform: rotateX(90deg) translateZ(var(--tz)); }
     .face-6 { transform: rotateX(-90deg) translateZ(var(--tz)); }
 
-    /* 주사위 결과별 회전 각도 */
     .show-1 { transform: rotateX(0deg) rotateY(0deg); }
     .show-2 { transform: rotateX(0deg) rotateY(-90deg); }
     .show-3 { transform: rotateX(0deg) rotateY(-180deg); }
@@ -94,7 +91,7 @@
     .show-5 { transform: rotateX(-90deg) rotateY(0deg); }
     .show-6 { transform: rotateX(90deg) rotateY(0deg); }
 
-    /* 버튼 입체 효과 */
+    /* 입체 버튼 스타일 */
     .btn-push {
       transition: all 0.12s ease;
       box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
@@ -104,7 +101,7 @@
       box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
     }
     .btn-push:disabled {
-      opacity: 0.5;
+      opacity: 0.52;
       cursor: not-allowed;
       box-shadow: none;
       transform: translateY(2px);
@@ -130,7 +127,7 @@
         </div>
       </div>
 
-      <!-- 방 접속 중일 때 우측 상단 정보 및 나가기 버튼 -->
+      <!-- 방 접속 중일 때 우측 상단 방 번호 & 방 나가기 버튼 -->
       <div id="header-room-controls" class="hidden items-center gap-2 sm:gap-3">
         <div class="bg-amber-100 border-2 border-amber-400 px-3 py-1.5 rounded-2xl text-center">
           <span class="block text-[11px] font-bold text-amber-800 leading-none">방 번호</span>
@@ -144,7 +141,7 @@
       </div>
     </div>
 
-    <!-- 네트워크 / 연결 상태 경고 배너 -->
+    <!-- 네트워크 / 동기화 지연 경고 배너 -->
     <div id="connection-banner" class="hidden bg-amber-500 text-white text-center py-2 px-4 font-bold text-sm sm:text-base animate-pulse">
       ⚠️ 연결을 다시 확인하고 있어요... 잠시만 기다려 주세요!
     </div>
@@ -153,33 +150,41 @@
   <!-- 메인 컨테이너 -->
   <main class="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center">
 
-    <!-- 0. 초기 인증 로딩 화면 -->
+    <!-- 0. 초기 복귀 확인 로딩 화면 -->
     <section id="view-loading" class="bg-white rounded-3xl shadow-xl border-4 border-sky-200 p-8 text-center my-auto">
       <div class="text-5xl mb-4 animate-bounce">🧪</div>
       <h2 class="font-jua text-2xl sm:text-3xl text-sky-900 mb-2">과학실 주사위 준비 중...</h2>
-      <p class="text-slate-600 font-medium">서버와 안전하게 연결하고 있어요.</p>
+      <p class="text-slate-600 font-medium">이전 활동 기록과 서버 연결을 확인하고 있어요.</p>
     </section>
 
     <!-- 1. 첫 화면 (홈: 방 만들기 / 방 들어가기) -->
     <section id="view-home" class="hidden flex-col gap-6 my-auto">
       <div class="bg-white/95 rounded-3xl shadow-xl border-4 border-sky-200 p-6 sm:p-10 text-center">
-        <div class="inline-flex items-center gap-2 bg-sky-100 text-sky-800 px-4 py-1.5 rounded-full font-bold text-sm sm:text-base mb-4">
-          <span>🎲 최대 4명 실시간 참여</span>
-          <span>•</span>
-          <span>📱 별도 로그인 없음</span>
+        <!-- 서버 연결 준비 상태 배지 -->
+        <div class="flex flex-wrap items-center justify-center gap-2 mb-4">
+          <div id="server-status-pill" class="inline-flex items-center gap-2 bg-amber-100 border-2 border-amber-300 text-amber-900 px-4 py-1.5 rounded-full font-bold text-sm sm:text-base">
+            <span id="server-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>
+            <span id="server-status-text">서버에 연결하고 있어요...</span>
+          </div>
+          <button id="btn-check-connection" type="button"
+            class="inline-flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3.5 py-1.5 rounded-full font-bold text-xs sm:text-sm">
+            <span>🩺</span>
+            <span>수업 전 연결 점검</span>
+          </button>
         </div>
+
         <h2 class="font-jua text-3xl sm:text-4xl md:text-5xl text-slate-800 mb-3">
           우리 모둠 차례를 정하고<br class="sm:hidden" /> 주사위를 굴려요!
         </h2>
         <p class="text-slate-600 text-base sm:text-lg font-medium mb-8 max-w-xl mx-auto">
-          모둠장 한 명이 <strong>[방 만들기]</strong>를 누르고, 나머지 친구들은 화면에 나온 4자리 숫자를 입력해 들어오세요.
+          모둠장 한 명이 <strong>[방 만들기]</strong>를 누르고, 나머지 친구들은 화면에 나온 4자리 숫자를 입력해 들어오세요. (최대 4명 · 별도 로그인 없음)
         </p>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto">
           <button id="btn-create-room" type="button"
             class="btn-push bg-sky-500 hover:bg-sky-600 text-white rounded-3xl p-7 sm:p-9 flex flex-col items-center justify-center gap-3 border-4 border-sky-300">
             <span class="text-5xl sm:text-6xl">🏠</span>
-            <span class="font-jua text-3xl sm:text-4xl tracking-wide">방 만들기</span>
+            <span id="btn-create-label" class="font-jua text-3xl sm:text-4xl tracking-wide">방 만들기</span>
             <span class="text-sky-100 text-sm sm:text-base font-bold">새로운 4자리 방 번호를 만들어요</span>
           </button>
 
@@ -214,7 +219,7 @@
         </div>
 
         <!-- 오류/안내 메시지 박스 -->
-        <div id="join-error-box" class="hidden mb-4 p-3.5 rounded-2xl bg-rose-100 border-2 border-rose-400 text-rose-900 font-bold text-center text-sm sm:text-base">
+        <div id="join-error-box" class="hidden mb-4 p-3.5 rounded-2xl bg-rose-100 border-2 border-rose-400 text-rose-900 font-bold text-center text-sm sm:text-base leading-snug">
         </div>
 
         <!-- 태블릿 숫자 키패드 -->
@@ -261,7 +266,7 @@
             <span class="text-xs sm:text-sm font-sans font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">최소 2명 ~ 최대 4명</span>
           </h3>
           <div id="lobby-players-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <!-- JS로 동적 렌더링 -->
+            <!-- JS로 렌더링 -->
           </div>
         </div>
 
@@ -299,20 +304,17 @@
         <!-- 사다리 SVG 영역 -->
         <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-2 sm:p-4 mb-4 overflow-hidden">
           <svg id="ladder-svg" class="w-full h-[320px] sm:h-[380px] md:h-[420px] block" viewBox="0 0 800 440" preserveAspectRatio="xMidYMid meet">
-            <!-- JS로 사다리 선, 이름, 도착 순번, 애니메이션 경로 렌더링 -->
           </svg>
         </div>
 
         <!-- 참가자별 도착 결과 배지 목록 -->
         <div id="ladder-individual-results" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
-          <!-- JS로 렌더링 -->
         </div>
 
         <!-- 발표 완료 후 최종 확정 순서 배너 -->
         <div id="ladder-final-banner" class="hidden bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-4 border-emerald-400 rounded-2xl p-4 sm:p-5 text-center mb-4">
           <p class="text-emerald-800 font-bold text-sm sm:text-base mb-1">🎉 주사위 굴리기 순서가 확정되었어요!</p>
           <div id="ladder-final-order-text" class="font-jua text-xl sm:text-2xl md:text-3xl text-emerald-950 leading-relaxed">
-            <!-- 예: 1번: 참가자 3 → 2번: 참가자 1 → 3번: 참가자 2 -->
           </div>
         </div>
 
@@ -338,54 +340,44 @@
           <span class="text-xs sm:text-sm font-bold text-slate-500">1번부터 차례대로 돌아가요</span>
         </div>
         <div id="dice-order-strip" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <!-- JS로 순서 카드 렌더링 -->
         </div>
       </div>
 
-      <!-- 중앙: 주사위 무대 + 최근 기록 (가로 화면 2단, 세로 화면 1단) -->
+      <!-- 중앙: 주사위 무대 + 최근 5회 결과 -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <!-- 주사위 무대 (2칸 차지) -->
         <div class="lg:col-span-2 bg-white rounded-3xl shadow-xl border-4 border-amber-300 p-6 sm:p-8 flex flex-col items-center justify-between text-center">
-          <!-- 현재 차례 안내 배지 -->
           <div id="dice-turn-banner" class="w-full rounded-2xl py-3 px-4 mb-4 font-jua text-2xl sm:text-3xl border-2">
-            <!-- 내 차례예요! / 참가자 2의 차례예요 -->
           </div>
 
           <!-- 3D 주사위 + 숫자 표시 -->
           <div class="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10 my-4">
             <div class="dice-scene">
               <div id="dice-cube" class="dice-cube show-1">
-                <!-- 1면 -->
                 <div class="dice-face face-1">
                   <div></div><div></div><div></div>
                   <div></div><div class="dot red"></div><div></div>
                   <div></div><div></div><div></div>
                 </div>
-                <!-- 2면 -->
                 <div class="dice-face face-2">
                   <div class="dot"></div><div></div><div></div>
                   <div></div><div></div><div></div>
                   <div></div><div></div><div class="dot"></div>
                 </div>
-                <!-- 3면 -->
                 <div class="dice-face face-3">
                   <div class="dot"></div><div></div><div></div>
                   <div></div><div class="dot"></div><div></div>
                   <div></div><div></div><div class="dot"></div>
                 </div>
-                <!-- 4면 -->
                 <div class="dice-face face-4">
                   <div class="dot"></div><div></div><div class="dot"></div>
                   <div></div><div></div><div></div>
                   <div class="dot"></div><div></div><div class="dot"></div>
                 </div>
-                <!-- 5면 -->
                 <div class="dice-face face-5">
                   <div class="dot"></div><div></div><div class="dot"></div>
                   <div></div><div class="dot"></div><div></div>
                   <div class="dot"></div><div></div><div class="dot"></div>
                 </div>
-                <!-- 6면 -->
                 <div class="dice-face face-6">
                   <div class="dot"></div><div></div><div class="dot"></div>
                   <div class="dot"></div><div></div><div class="dot"></div>
@@ -394,7 +386,6 @@
               </div>
             </div>
 
-            <!-- 나온 눈 큰 숫자 카드 -->
             <div class="bg-slate-50 border-4 border-slate-200 rounded-3xl px-7 py-4 min-w-[150px]">
               <span class="block text-sm font-bold text-slate-500 mb-1">나온 주사위 눈</span>
               <div id="dice-number-text" class="font-jua text-6xl sm:text-7xl text-sky-600 leading-none">
@@ -406,7 +397,6 @@
             </div>
           </div>
 
-          <!-- 큰 [주사위 굴리기] 버튼 영역 -->
           <div class="w-full max-w-md mt-4">
             <button id="btn-roll-dice" type="button" disabled
               class="btn-push w-full bg-amber-500 hover:bg-amber-600 text-white font-jua text-3xl sm:text-4xl py-5 sm:py-6 rounded-3xl border-4 border-amber-300 flex items-center justify-center gap-3">
@@ -416,7 +406,7 @@
           </div>
         </div>
 
-        <!-- 우측/하단: 최근 5회 결과 기록 -->
+        <!-- 최근 5회 결과 기록 -->
         <div class="bg-white rounded-3xl shadow-xl border-4 border-slate-200 p-5 sm:p-6 flex flex-col">
           <div class="flex items-center justify-between border-b-2 border-slate-100 pb-3 mb-3">
             <h3 class="font-jua text-xl sm:text-2xl text-slate-800">🕒 최근 5회 결과</h3>
@@ -433,24 +423,24 @@
 
   </main>
 
-  <!-- 공용 안내 / 확인 모달 (alert, confirm 대체) -->
+  <!-- 공용 안내 / 진단 / 확인 모달 (alert, confirm 대체) -->
   <div id="modal-backdrop" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl border-4 border-sky-300 shadow-2xl max-w-md w-full p-6 sm:p-7 text-center">
       <div id="modal-icon" class="text-5xl mb-3">💬</div>
       <h3 id="modal-title" class="font-jua text-2xl sm:text-3xl text-slate-800 mb-2">안내</h3>
-      <p id="modal-message" class="text-slate-600 font-bold text-base sm:text-lg mb-6 leading-relaxed"></p>
-      <div id="modal-actions" class="flex gap-3 justify-center">
-        <!-- JS로 버튼 삽입 -->
+      <p id="modal-message" class="text-slate-600 font-bold text-base sm:text-lg mb-3 leading-relaxed whitespace-pre-line"></p>
+      <p id="modal-tech-detail" class="hidden text-xs font-mono bg-slate-100 text-slate-500 rounded-xl px-3 py-2 mb-5 break-all"></p>
+      <div id="modal-actions" class="flex gap-3 justify-center mt-4">
       </div>
     </div>
   </div>
 
-  <!-- Firebase & 앱 로직 -->
+  <!-- Firebase v11 Modular SDK & 앱 로직 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import {
-      getFirestore,
+      initializeFirestore,
       doc,
       getDoc,
       setDoc,
@@ -460,30 +450,51 @@
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // =========================================================================
-    // 1. Firebase 초기화 및 전역 환경 설정
+    // 1. Firebase 초기화 (학내망/스쿨넷 방화벽 호환 Long Polling 적용)
     // =========================================================================
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'gimcheon-dasu-science-dice';
-    const firebaseConfig = typeof __firebase_config !== 'undefined'
-      ? JSON.parse(__firebase_config)
-      : {
-          // 독립 배포 시 본인의 Firebase 프로젝트 설정으로 교체하세요.
-          apiKey: "YOUR_API_KEY",
-          authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-          projectId: "YOUR_PROJECT_ID",
-          storageBucket: "YOUR_PROJECT_ID.appspot.com",
-          messagingSenderId: "YOUR_SENDER_ID",
-          appId: "YOUR_APP_ID"
-        };
+    const appId = typeof window.__app_id !== 'undefined'
+      ? window.__app_id
+      : (typeof __app_id !== 'undefined' ? __app_id : 'gimcheon-dasu-science-dice');
+
+    let firebaseConfig = null;
+    let isPlaceholderConfig = false;
+
+    try {
+      const rawCfg = typeof window.__firebase_config !== 'undefined'
+        ? window.__firebase_config
+        : (typeof __firebase_config !== 'undefined' ? __firebase_config : null);
+
+      if (rawCfg) {
+        firebaseConfig = typeof rawCfg === 'string' ? JSON.parse(rawCfg) : rawCfg;
+      }
+    } catch (parseErr) {
+      console.error('Firebase 설정 파싱 오류:', parseErr);
+    }
+
+    if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === 'YOUR_API_KEY') {
+      isPlaceholderConfig = true;
+      firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+      };
+    }
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db = getFirestore(app);
+    // 학교 와이파이(스쿨넷)에서 WebSocket 차단 시에도 안정적으로 동작하도록 Long Polling 강제 활성화
+    const db = initializeFirestore(app, {
+      experimentalForceLongPolling: true
+    });
 
     // Firestore 방 문서 경로 헬퍼 (규칙 준수: /artifacts/{appId}/public/data/rooms/{roomCode})
     const getRoomRef = (roomCode) => doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode);
 
     // =========================================================================
-    // 2. 세션 관리 (새로고침 시 동일 참가자 복귀 보장)
+    // 2. 세션 관리 및 연결 준비 상태 추적
     // =========================================================================
     const SESSION_KEY_PARTICIPANT = 'gds_science_participant_id';
     const SESSION_KEY_ROOM = 'gds_science_active_room';
@@ -499,11 +510,13 @@
 
     const myParticipantId = getOrCreateParticipantId();
     let currentUser = null;
+    let authReadyPromise = null;
+    let lastAuthError = null;
+
     let currentRoomCode = sessionStorage.getItem(SESSION_KEY_ROOM) || null;
     let unsubscribeRoom = null;
     let latestRoomData = null;
 
-    // UI 및 동작 상태 플래그
     let isOnline = navigator.onLine;
     let isSnapshotSynced = false;
     let isRollingRequestInFlight = false;
@@ -512,7 +525,6 @@
     let ladderAnimFinished = false;
     let ladderAnimTimer = null;
 
-    // 참가자 색상 팔레트 (색맹/가독성 고려 선명한 구분)
     const PLAYER_COLORS = [
       { bg: 'bg-sky-100', border: 'border-sky-400', text: 'text-sky-900', hex: '#0284c7', badge: 'bg-sky-600' },
       { bg: 'bg-emerald-100', border: 'border-emerald-400', text: 'text-emerald-900', hex: '#059669', badge: 'bg-emerald-600' },
@@ -521,7 +533,68 @@
     ];
 
     // =========================================================================
-    // 3. DOM 요소 참조 및 화면 전환 헬퍼
+    // 3. 한국어 진단 메시지 변환 헬퍼
+    // =========================================================================
+    function formatKoreanFirebaseError(err) {
+      const code = err?.code || err?.message || 'unknown-error';
+      if (isPlaceholderConfig) {
+        return {
+          title: '서버 설정이 필요해요',
+          message: '아직 Firebase 데이터베이스 설정이 연결되지 않은 단독 HTML 파일이에요.\n미리보기 환경에서 실행하거나 Firebase 설정값을 입력해 주세요.',
+          tech: `설정 상태: 미설정 (${code})`
+        };
+      }
+      if (code === 'auth/operation-not-allowed') {
+        return {
+          title: '익명 로그인 설정 필요',
+          message: 'Firebase 콘솔의 [Authentication → 로그인 방법]에서 ‘익명(Anonymous)’ 로그인을 사용 설정해 주세요.',
+          tech: `오류 코드: ${code}`
+        };
+      }
+      if (code === 'permission-denied' || String(code).includes('permission-denied')) {
+        return {
+          title: '데이터베이스 접근 권한 오류',
+          message: 'Firestore 보안 규칙에서 읽기/쓰기가 차단되어 있어요. Firebase 콘솔의 규칙 설정을 확인해 주세요.',
+          tech: `오류 코드: ${code}`
+        };
+      }
+      if (code === 'unavailable' || code === 'auth/network-request-failed' || !navigator.onLine) {
+        return {
+          title: '서버 응답이 지연되고 있어요',
+          message: '학내망(와이파이) 연결 상태를 확인한 뒤 다시 눌러 주세요. 방화벽 환경에서는 첫 연결에 몇 초 걸릴 수 있어요.',
+          tech: `오류 코드: ${code}`
+        };
+      }
+      return {
+        title: '서버 연결 중 문제가 생겼어요',
+        message: '잠시 후 다시 시도해 주세요. 문제가 계속되면 아래 오류 코드를 확인해 주세요.',
+        tech: `오류 코드: ${code}`
+      };
+    }
+
+    function updateServerStatusPill(state, customText = null) {
+      const pill = document.getElementById('server-status-pill');
+      const dot = document.getElementById('server-status-dot');
+      const text = document.getElementById('server-status-text');
+      if (!pill || !dot || !text) return;
+
+      if (state === 'connecting') {
+        pill.className = 'inline-flex items-center gap-2 bg-amber-100 border-2 border-amber-300 text-amber-900 px-4 py-1.5 rounded-full font-bold text-sm sm:text-base';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping';
+        text.textContent = customText || '서버에 연결하고 있어요...';
+      } else if (state === 'ready') {
+        pill.className = 'inline-flex items-center gap-2 bg-emerald-100 border-2 border-emerald-300 text-emerald-900 px-4 py-1.5 rounded-full font-bold text-sm sm:text-base';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+        text.textContent = customText || '준비 완료! 바로 시작할 수 있어요';
+      } else {
+        pill.className = 'inline-flex items-center gap-2 bg-rose-100 border-2 border-rose-300 text-rose-900 px-4 py-1.5 rounded-full font-bold text-sm sm:text-base';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+        text.textContent = customText || '연결 확인이 필요해요 (다시 누르면 재시도)';
+      }
+    }
+
+    // =========================================================================
+    // 4. DOM 요소 참조, 화면 전환, 모달 제어
     // =========================================================================
     const views = {
       loading: document.getElementById('view-loading'),
@@ -555,12 +628,19 @@
       }
     }
 
-    // 커스텀 모달 (alert / confirm 대체)
-    function showModal({ icon = '💬', title = '안내', message = '', confirmText = '확인', cancelText = null, onConfirm = null }) {
+    function showModal({ icon = '💬', title = '안내', message = '', techDetail = null, confirmText = '확인', cancelText = null, onConfirm = null }) {
       const backdrop = document.getElementById('modal-backdrop');
       document.getElementById('modal-icon').textContent = icon;
       document.getElementById('modal-title').textContent = title;
       document.getElementById('modal-message').textContent = message;
+
+      const techEl = document.getElementById('modal-tech-detail');
+      if (techDetail) {
+        techEl.textContent = techDetail;
+        techEl.classList.remove('hidden');
+      } else {
+        techEl.classList.add('hidden');
+      }
 
       const actions = document.getElementById('modal-actions');
       actions.innerHTML = '';
@@ -587,7 +667,6 @@
       backdrop.classList.remove('hidden');
     }
 
-    // 연결 상태 배너 및 주사위 버튼 잠금 동기화
     function updateConnectionUI() {
       const banner = document.getElementById('connection-banner');
       const healthy = isOnline && (!currentRoomCode || isSnapshotSynced);
@@ -604,6 +683,7 @@
     window.addEventListener('online', () => {
       isOnline = true;
       updateConnectionUI();
+      if (!currentUser) ensureAuthenticated();
     });
     window.addEventListener('offline', () => {
       isOnline = false;
@@ -611,7 +691,82 @@
     });
 
     // =========================================================================
-    // 4. 암호학적 난수 및 사다리 데이터 생성 알고리즘
+    // 5. 인증 보장 헬퍼 (자동 재시도 및 버튼 조기 클릭 대기)
+    // =========================================================================
+    async function ensureAuthenticated(forceRetry = false) {
+      if (currentUser && !forceRetry) return currentUser;
+      if (authReadyPromise && !forceRetry) return authReadyPromise;
+
+      updateServerStatusPill('connecting');
+      lastAuthError = null;
+
+      authReadyPromise = (async () => {
+        const token = typeof window.__initial_auth_token !== 'undefined'
+          ? window.__initial_auth_token
+          : (typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null);
+
+        let lastErr = null;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            let userCred;
+            if (token) {
+              try {
+                userCred = await signInWithCustomToken(auth, token);
+              } catch (tokenErr) {
+                console.warn('커스텀 토큰 인증 실패, 익명 인증으로 전환합니다:', tokenErr);
+                userCred = await signInAnonymously(auth);
+              }
+            } else {
+              userCred = await signInAnonymously(auth);
+            }
+            currentUser = userCred.user;
+            updateServerStatusPill('ready');
+            return currentUser;
+          } catch (err) {
+            lastErr = err;
+            console.warn(`인증 시도 ${attempt} 실패:`, err);
+            await new Promise(r => setTimeout(r, 600));
+          }
+        }
+
+        lastAuthError = lastErr;
+        updateServerStatusPill('error');
+        throw lastErr;
+      })();
+
+      try {
+        return await authReadyPromise;
+      } finally {
+        authReadyPromise = null;
+      }
+    }
+
+    // 수업 전 연결 진단 버튼 핸들러
+    async function runConnectionDiagnostics() {
+      updateServerStatusPill('connecting', '연결 상태를 점검하고 있어요...');
+      try {
+        const user = await ensureAuthenticated(true);
+        const pingRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', '_healthcheck');
+        await setDoc(pingRef, { checkedAt: serverTimestamp(), uid: user.uid }, { merge: true });
+        showModal({
+          icon: '✅',
+          title: '연결 상태 정상!',
+          message: '서버 인증과 데이터베이스 실시간 통신이 모두 정상적으로 작동하고 있어요.\n수업에서 바로 사용하실 수 있습니다!',
+          techDetail: `앱 경로: /artifacts/${appId}/public/data/rooms`
+        });
+      } catch (err) {
+        const diag = formatKoreanFirebaseError(err);
+        showModal({
+          icon: '🩺',
+          title: diag.title,
+          message: diag.message,
+          techDetail: diag.tech
+        });
+      }
+    }
+
+    // =========================================================================
+    // 6. 암호학적 난수 및 일대일 검증 사다리 생성
     // =========================================================================
     function getSecureRandomInt(maxExclusive) {
       const array = new Uint32Array(1);
@@ -624,35 +779,26 @@
       return String(num).padStart(4, '0');
     }
 
-    /**
-     * N명의 참가자에 대해:
-     * 1) 인접 세로줄만 연결하고, 같은 높이에서 끝점을 공유하지 않는 유효한 가로줄 생성
-     * 2) 생성된 가로줄을 실제로 위에서 아래로 따라 내려갔을 때의 최종 도착 순번(1~N)을 계산
-     * 3) 도착 순번이 반드시 1~N의 일대일 순열이 됨을 보장
-     */
     function generateVerifiedLadder(playerCount) {
-      const levels = 7; // 가로줄 층 수 (충분한 교차 보장)
-      const rungs = []; // { level: 0..levels-1, col: 0..playerCount-2 }
+      const levels = 7;
+      const rungs = [];
 
       for (let lv = 0; lv < levels; lv++) {
         let c = 0;
         while (c < playerCount - 1) {
-          // 약 55% 확률로 가로줄 배치 (단, 바로 왼쪽에 가로줄이 있으면 건너뛰어 끝점 공유 방지)
           if (getSecureRandomInt(100) < 55) {
             rungs.push({ level: lv, col: c });
-            c += 2; // 인접 세로줄과 끝점을 공유하지 않도록 한 칸 건너뜀
+            c += 2; // 인접 세로줄과 끝점 공유 방지
           } else {
             c += 1;
           }
         }
       }
 
-      // 최소 1개 이상의 가로줄 보장
       if (rungs.length === 0) {
         rungs.push({ level: Math.floor(levels / 2), col: 0 });
       }
 
-      // 실제 사다리 경로 추적하여 각 시작 열(0..N-1)의 도착 열(0..N-1) 계산
       const startToDest = [];
       for (let startCol = 0; startCol < playerCount; startCol++) {
         let currCol = startCol;
@@ -665,31 +811,30 @@
             currCol -= 1;
           }
         }
-        startToDest.push(currCol); // 0-based 도착 순번 (0 -> 1번 차례)
+        startToDest.push(currCol);
       }
 
       return {
         levels,
         rungs,
-        startToDest // startToDest[i] = i번째 참가자의 도착 순번 인덱스 (0이면 1번 차례)
+        startToDest
       };
     }
 
     // =========================================================================
-    // 5. 방 만들기 / 방 들어가기 (Firestore 트랜잭션)
+    // 7. 방 만들기 / 방 들어가기 (트랜잭션)
     // =========================================================================
     async function createRoom() {
-      if (!currentUser || !isOnline) {
-        showModal({ icon: '📡', title: '연결 확인', message: '인터넷 연결을 확인한 뒤 다시 눌러 주세요.' });
-        return;
-      }
-
       const btn = document.getElementById('btn-create-room');
+      const label = document.getElementById('btn-create-label');
       btn.disabled = true;
+      label.textContent = '방 만드는 중...';
 
       try {
+        // 인증이 아직 진행 중이면 완료될 때까지 자연스럽게 대기
+        const user = await ensureAuthenticated();
+
         let createdCode = null;
-        // 최대 15회 시도하여 열려 있는 다른 방과 겹치지 않는 4자리 번호 발급
         for (let attempt = 0; attempt < 15; attempt++) {
           const candidateCode = generate4DigitCode();
           const roomRef = getRoomRef(candidateCode);
@@ -698,7 +843,6 @@
             const snap = await tx.get(roomRef);
             if (snap.exists()) {
               const data = snap.data();
-              // 닫히지 않고 활성 상태인 방이 이미 있으면 충돌 처리
               if (data.status && data.status !== 'closed') {
                 return false;
               }
@@ -706,7 +850,7 @@
 
             const hostPlayer = {
               participantId: myParticipantId,
-              uid: currentUser.uid,
+              uid: user.uid,
               name: '참가자 1',
               joinIndex: 1,
               active: true,
@@ -715,16 +859,16 @@
 
             tx.set(roomRef, {
               roomCode: candidateCode,
-              status: 'lobby', // 'lobby' | 'ladder' | 'dice' | 'closed'
+              status: 'lobby',
               hostId: myParticipantId,
               nextJoinIndex: 2,
               players: [hostPlayer],
               ladder: null,
-              turnOrder: [], // 확정된 주사위 순서 (participantId 배열)
+              turnOrder: [],
               currentTurnIndex: 0,
               rollCount: 0,
-              lastRoll: null, // { id, participantId, name, value }
-              rollHistory: [], // 최근 5회 [{ participantId, name, value }]
+              lastRoll: null,
+              rollHistory: [],
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp()
             });
@@ -738,33 +882,33 @@
         }
 
         if (!createdCode) {
-          throw new Error('사용 가능한 방 번호를 찾지 못했습니다.');
+          throw new Error('NO_AVAILABLE_ROOM_CODE');
         }
 
         enterRoomSession(createdCode);
       } catch (err) {
         console.error('방 만들기 오류:', err);
+        const diag = formatKoreanFirebaseError(err);
         showModal({
-          icon: '😥',
-          title: '방을 만들지 못했어요',
-          message: '잠시 후 다시 [방 만들기] 버튼을 눌러 주세요.'
+          icon: '📡',
+          title: diag.title,
+          message: diag.message,
+          techDetail: diag.tech
         });
       } finally {
         btn.disabled = false;
+        label.textContent = '방 만들기';
       }
     }
 
     async function joinRoomByCode(code) {
-      if (!currentUser || !isOnline) {
-        showJoinError('인터넷 연결을 확인한 뒤 다시 시도해 주세요.');
-        return;
-      }
-
       const submitBtn = document.getElementById('btn-submit-join');
       submitBtn.disabled = true;
+      submitBtn.textContent = '방에 들어가는 중...';
       hideJoinError();
 
       try {
+        const user = await ensureAuthenticated();
         const roomRef = getRoomRef(code);
 
         await runTransaction(db, async (tx) => {
@@ -781,19 +925,18 @@
           const players = Array.isArray(data.players) ? [...data.players] : [];
           const existingIdx = players.findIndex(p => p.participantId === myParticipantId);
 
-          // 1) 이미 명단에 있는 기존 참가자의 재접속인 경우
+          // 기존 참가자 재접속
           if (existingIdx !== -1) {
             const existingPlayer = players[existingIdx];
             if (!existingPlayer.active) {
               throw new Error('ALREADY_LEFT');
             }
-            // uid 갱신만 수행하고 기존 자리 유지
-            players[existingIdx] = { ...existingPlayer, uid: currentUser.uid };
+            players[existingIdx] = { ...existingPlayer, uid: user.uid };
             tx.update(roomRef, { players, updatedAt: serverTimestamp() });
             return;
           }
 
-          // 2) 신규 입장인 경우 상태 및 정원 검사
+          // 새 참가자 입장 검증
           if (data.status !== 'lobby') {
             throw new Error('GAME_ALREADY_STARTED');
           }
@@ -806,7 +949,7 @@
           const joinIndex = data.nextJoinIndex || (players.length + 1);
           const newPlayer = {
             participantId: myParticipantId,
-            uid: currentUser.uid,
+            uid: user.uid,
             name: `참가자 ${joinIndex}`,
             joinIndex,
             active: true,
@@ -823,21 +966,27 @@
 
         enterRoomSession(code);
       } catch (err) {
-        const msgMap = {
-          ROOM_NOT_FOUND: `‘${code}’번 방을 찾을 수 없어요. 번호를 다시 확인해 주세요!`,
+        const knownMessages = {
+          ROOM_NOT_FOUND: `‘${code}’번은 없는 방 번호예요. 친구 화면의 번호를 다시 확인해 주세요!`,
           ROOM_CLOSED: '모두 나가서 이미 닫힌 방이에요.',
           ROOM_FULL: '방 정원(4명)이 다 차서 들어갈 수 없어요.',
-          GAME_ALREADY_STARTED: '이미 사다리 타기가 시작되어 새로 들어갈 수 없어요.',
+          GAME_ALREADY_STARTED: '이미 게임이 시작된 방이에요. 새로운 방을 만들어 주세요!',
           ALREADY_LEFT: '이미 나간 방에는 다시 들어갈 수 없어요.'
         };
-        showJoinError(msgMap[err.message] || '방에 들어가는 중 문제가 생겼어요. 다시 눌러 주세요.');
+        if (knownMessages[err.message]) {
+          showJoinError(knownMessages[err.message]);
+        } else {
+          const diag = formatKoreanFirebaseError(err);
+          showJoinError(`${diag.title}: ${diag.message} (${diag.tech})`);
+        }
       } finally {
+        submitBtn.textContent = '방 들어가기';
         submitBtn.disabled = enteredPin.length !== 4;
       }
     }
 
     // =========================================================================
-    // 6. 실시간 방 구독 및 세션 복구
+    // 8. 실시간 방 구독 및 세션 복구
     // =========================================================================
     function enterRoomSession(roomCode) {
       currentRoomCode = roomCode;
@@ -876,14 +1025,12 @@
             return;
           }
 
-          // 내가 활성 참가자 목록에 있는지 확인
           const me = (data.players || []).find(p => p.participantId === myParticipantId);
           if (!me || !me.active) {
             clearRoomSessionAndGoHome('방에서 나왔어요.');
             return;
           }
 
-          // 상태별 화면 렌더링
           if (data.status === 'lobby') {
             showView('lobby');
             renderLobbyView(data);
@@ -923,7 +1070,7 @@
     }
 
     // =========================================================================
-    // 7. 대기실 렌더링 및 [사다리 타기 시작]
+    // 9. 대기실 렌더링 및 [사다리 타기 시작]
     // =========================================================================
     function renderLobbyView(data) {
       document.getElementById('lobby-room-code').textContent = data.roomCode;
@@ -998,12 +1145,11 @@
           if (!snap.exists()) throw new Error('방이 존재하지 않습니다.');
           const data = snap.data();
 
-          // 서버 레벨 검증: 방장 권한 및 대기실 상태 확인
           if (data.hostId !== myParticipantId) {
             throw new Error('방장만 사다리 타기를 시작할 수 있어요.');
           }
           if (data.status !== 'lobby') {
-            return; // 이미 시작됨 (중복 클릭 방어)
+            return;
           }
 
           const activePlayers = (data.players || []).filter(p => p.active);
@@ -1011,10 +1157,7 @@
             throw new Error('참가자는 2명에서 4명 사이여야 해요.');
           }
 
-          // 한 번만 생성되는 검증된 무작위 사다리
           const ladder = generateVerifiedLadder(activePlayers.length);
-
-          // 사다리 도착 순번(0..N-1)에 따라 확정된 turnOrder(participantId 배열) 계산
           const orderedParticipants = new Array(activePlayers.length);
           activePlayers.forEach((player, idx) => {
             const destRank = ladder.startToDest[idx];
@@ -1043,7 +1186,7 @@
     }
 
     // =========================================================================
-    // 8. 사다리 게임 렌더링, 경로 추적 애니메이션, [주사위 게임 시작]
+    // 10. 사다리 게임 렌더링 및 애니메이션
     // =========================================================================
     function computeLadderPolylinePoints(ladder, startCol, colX, topY, bottomY) {
       const { levels, rungs } = ladder;
@@ -1077,9 +1220,7 @@
       const n = participants.length;
       const svg = document.getElementById('ladder-svg');
 
-      // SVG 좌표 계산
       const width = 800;
-      const height = 440;
       const topY = 78;
       const bottomY = 365;
       const marginX = n === 2 ? 230 : n === 3 ? 170 : 125;
@@ -1087,24 +1228,16 @@
       const colX = Array.from({ length: n }, (_, i) => marginX + i * spacingX);
       const stepY = (bottomY - topY) / (ladder.levels + 1);
 
-      // 기본 사다리 SVG 그리기
       let svgHTML = '';
-
-      // 1) 세로줄
       for (let i = 0; i < n; i++) {
         svgHTML += `<line x1="${colX[i]}" y1="${topY}" x2="${colX[i]}" y2="${bottomY}" stroke="#94a3b8" stroke-width="8" stroke-linecap="round" />`;
       }
-
-      // 2) 가로줄
       for (const r of ladder.rungs) {
         const y = topY + stepY * (r.level + 1);
         svgHTML += `<line x1="${colX[r.col]}" y1="${y}" x2="${colX[r.col + 1]}" y2="${y}" stroke="#94a3b8" stroke-width="8" stroke-linecap="round" />`;
       }
-
-      // 3) 경로 애니메이션 레이어 그룹
       svgHTML += `<g id="ladder-paths-layer"></g>`;
 
-      // 4) 상단 참가자 이름 배지
       participants.forEach((p, idx) => {
         const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
         const x = colX[idx];
@@ -1116,7 +1249,6 @@
         `;
       });
 
-      // 5) 하단 '1번 차례', '2번 차례'... 배지
       for (let rank = 0; rank < n; rank++) {
         const x = colX[rank];
         svgHTML += `
@@ -1129,7 +1261,6 @@
 
       svg.innerHTML = svgHTML;
 
-      // 개별 도착 결과 카드 컨테이너 초기화
       const resGrid = document.getElementById('ladder-individual-results');
       resGrid.innerHTML = '';
       participants.forEach((p, idx) => {
@@ -1149,12 +1280,10 @@
         resGrid.appendChild(card);
       });
 
-      // 방장/참가자 하단 컨트롤 설정
       const amIHost = data.hostId === myParticipantId;
       document.getElementById('ladder-host-controls').classList.toggle('hidden', !amIHost || !ladderAnimFinished);
       document.getElementById('ladder-guest-wait').classList.toggle('hidden', amIHost || !ladderAnimFinished);
 
-      // 방별로 한 번만 순차 경로 애니메이션 실행
       const animKey = `${data.roomCode}_${n}`;
       if (ladderAnimStartedForRoom !== animKey) {
         ladderAnimStartedForRoom = animKey;
@@ -1210,7 +1339,6 @@
         const pathsLayer = document.getElementById('ladder-paths-layer');
         if (!pathsLayer) return;
 
-        // 이전 경로는 연하게 유지
         Array.from(pathsLayer.querySelectorAll('polyline')).forEach(el => el.setAttribute('opacity', '0.32'));
 
         const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
@@ -1224,10 +1352,9 @@
         }
         pathsLayer.appendChild(poly);
 
-        // 포인트 단위 부드러운 진행
         let segIdx = 0;
         let progress = 0;
-        const speed = 0.14; // 프레임당 세그먼트 진행률
+        const speed = 0.14;
 
         if (ladderAnimTimer) clearInterval(ladderAnimTimer);
         ladderAnimTimer = setInterval(() => {
@@ -1274,7 +1401,6 @@
       statusBadge.textContent = '✅ 순서 발표 완료!';
       statusBadge.className = 'bg-emerald-100 border-2 border-emerald-400 text-emerald-900 font-bold px-4 py-2 rounded-2xl text-sm sm:text-base';
 
-      // '1번: 참가자 3 → 2번: 참가자 1 → 3번: 참가자 2' 형식으로 표시 (사다리 원래 결과 기준)
       const ladder = data.ladder;
       const orderedNames = new Array(ladder.participants.length);
       ladder.participants.forEach((p, idx) => {
@@ -1307,7 +1433,6 @@
           }
           if (data.status !== 'ladder') return;
 
-          // 사다리 도중 나간 참가자를 제외한 활성 순서 정리
           const activeIds = new Set((data.players || []).filter(p => p.active).map(p => p.participantId));
           const remainingOrder = (data.turnOrder || []).filter(pid => activeIds.has(pid));
 
@@ -1330,7 +1455,7 @@
     }
 
     // =========================================================================
-    // 9. 주사위 게임 렌더링 및 원자적 주사위 굴리기
+    // 11. 주사위 게임 렌더링 및 원자적 주사위 굴리기
     // =========================================================================
     function renderDiceView(data) {
       const players = data.players || [];
@@ -1344,7 +1469,6 @@
       const currentTurnPlayer = activePlayersMap.get(currentTurnPid);
       const isMyTurn = currentTurnPid === myParticipantId;
 
-      // 1) 상단 전체 순서 스트립 렌더링
       const orderStrip = document.getElementById('dice-order-strip');
       orderStrip.innerHTML = '';
       turnOrder.forEach((pid, idx) => {
@@ -1374,7 +1498,6 @@
         orderStrip.appendChild(card);
       });
 
-      // 2) 현재 차례 큰 안내 배너
       const turnBanner = document.getElementById('dice-turn-banner');
       if (isMyTurn) {
         turnBanner.className = 'w-full rounded-2xl py-3.5 px-4 mb-4 font-jua text-2xl sm:text-3xl border-4 bg-emerald-100 border-emerald-400 text-emerald-950';
@@ -1384,7 +1507,6 @@
         turnBanner.textContent = `⏳ ${currentTurnPlayer.name}의 차례예요`;
       }
 
-      // 3) 주사위 굴리기 버튼 상태 (내 차례 + 온라인 + 동기화 완료 + 요청 중 아님)
       const rollBtn = document.getElementById('btn-roll-dice');
       const rollBtnText = document.getElementById('btn-roll-text');
       const canRoll = isMyTurn && isOnline && isSnapshotSynced && !isRollingRequestInFlight;
@@ -1400,7 +1522,6 @@
         rollBtnText.textContent = `${currentTurnPlayer.name} 차례 대기`;
       }
 
-      // 4) 주사위 눈 및 애니메이션 동기화
       const lastRoll = data.lastRoll;
       const cube = document.getElementById('dice-cube');
       const numText = document.getElementById('dice-number-text');
@@ -1426,7 +1547,6 @@
         lastRollerEl.textContent = '아직 굴리지 않았어요';
       }
 
-      // 5) 최근 5회 결과 렌더링 ('참가자 2 — 5' 형식)
       const historyList = document.getElementById('dice-history-list');
       const history = Array.isArray(data.rollHistory) ? data.rollHistory.slice(0, 5) : [];
       if (history.length === 0) {
@@ -1476,13 +1596,11 @@
           const currentTurnIdx = (data.currentTurnIndex || 0) % turnOrder.length;
           const expectedPid = turnOrder[currentTurnIdx];
 
-          // 서버/DB 레벨 엄격 검증: 현재 차례 참가자 본인인지 확인 (중복 터치 및 동시 요청 차단)
           if (expectedPid !== myParticipantId) {
             throw new Error('NOT_YOUR_TURN');
           }
 
           const roller = activePlayersMap.get(myParticipantId);
-          // 1~6 균등 확률 난수 생성
           const diceValue = getSecureRandomInt(6) + 1;
           const nextRollCount = (data.rollCount || 0) + 1;
           const nextTurnIdx = (currentTurnIdx + 1) % turnOrder.length;
@@ -1521,7 +1639,7 @@
     }
 
     // =========================================================================
-    // 10. 방 나가기 (순서 유지, 차례 승계, 방장 위임, 전원 퇴장 시 방 닫기)
+    // 12. 방 나가기 (순서 유지, 차례 승계, 방장 위임, 전원 퇴장 시 방 닫기)
     // =========================================================================
     function confirmLeaveRoom() {
       showModal({
@@ -1553,11 +1671,9 @@
           const meIdx = players.findIndex(p => p.participantId === myParticipantId);
           if (meIdx === -1 || !players[meIdx].active) return;
 
-          // 해당 참가자를 비활성 처리
           players[meIdx] = { ...players[meIdx], active: false, leftAt: Date.now() };
           const remainingActive = players.filter(p => p.active);
 
-          // 전원이 나간 경우 방을 닫음
           if (remainingActive.length === 0) {
             tx.update(roomRef, {
               players,
@@ -1568,14 +1684,12 @@
             return;
           }
 
-          // 방장이 나간 경우 가장 먼저 입장한 남은 참가자에게 방장 위임
           let nextHostId = data.hostId;
           if (data.hostId === myParticipantId) {
             const sortedByJoin = [...remainingActive].sort((a, b) => (a.joinIndex || 0) - (b.joinIndex || 0));
             nextHostId = sortedByJoin[0].participantId;
           }
 
-          // 순서 및 현재 차례 승계 계산
           const oldTurnOrder = Array.isArray(data.turnOrder) ? [...data.turnOrder] : [];
           let newTurnOrder = oldTurnOrder.filter(pid => pid !== myParticipantId);
           let newTurnIndex = data.currentTurnIndex || 0;
@@ -1586,13 +1700,10 @@
 
             if (leavingOrderPos !== -1) {
               if (leavingOrderPos < oldSafeIdx) {
-                // 나보다 앞 순서 사람이 나갔으므로 현재 차례 인덱스를 1 당겨 동일인 유지
                 newTurnIndex = (oldSafeIdx - 1) % newTurnOrder.length;
               } else if (leavingOrderPos === oldSafeIdx) {
-                // 현재 내 차례였다면 기존 순서상 바로 다음 남은 참가자가 같은 인덱스를 물려받음
                 newTurnIndex = oldSafeIdx % newTurnOrder.length;
               } else {
-                // 내 뒤 순서 사람이 나갔으므로 현재 차례 인덱스 그대로 유지
                 newTurnIndex = oldSafeIdx % newTurnOrder.length;
               }
             } else {
@@ -1618,7 +1729,7 @@
     }
 
     // =========================================================================
-    // 11. 숫자 키패드 입력 제어
+    // 13. 숫자 키패드 입력 제어
     // =========================================================================
     let enteredPin = '';
 
@@ -1676,7 +1787,6 @@
       resetPinInput();
     });
 
-    // 물리 키보드 숫자 입력도 지원
     window.addEventListener('keydown', (e) => {
       if (views.join.classList.contains('hidden')) return;
       if (e.key >= '0' && e.key <= '9' && enteredPin.length < 4) {
@@ -1693,9 +1803,10 @@
     });
 
     // =========================================================================
-    // 12. 버튼 이벤트 바인딩 및 앱 부트스트랩
+    // 14. 이벤트 바인딩 및 앱 시작 부트스트랩
     // =========================================================================
     document.getElementById('btn-create-room').addEventListener('click', createRoom);
+    document.getElementById('btn-check-connection').addEventListener('click', runConnectionDiagnostics);
     document.getElementById('btn-go-join').addEventListener('click', () => {
       resetPinInput();
       showView('join');
@@ -1714,16 +1825,14 @@
     document.getElementById('btn-start-dice').addEventListener('click', startDiceStage);
     document.getElementById('btn-roll-dice').addEventListener('click', rollDiceAtomic);
 
-    // 앱 시작: 익명 인증 후 기존 진행 중인 방 세션이 있다면 자동 복귀
     async function bootstrapApp() {
+      // 이전 방 세션이 없으면 첫 화면을 즉시 보여 주고 백그라운드에서 인증 진행
+      if (!currentRoomCode) {
+        showView('home');
+      }
+
       try {
-        let userCred;
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          userCred = await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          userCred = await signInAnonymously(auth);
-        }
-        currentUser = userCred.user;
+        await ensureAuthenticated();
 
         // 새로고침 복귀 확인
         if (currentRoomCode) {
@@ -1736,20 +1845,14 @@
               return;
             }
           }
-          // 유효하지 않은 이전 방 세션 정리
           sessionStorage.removeItem(SESSION_KEY_ROOM);
           currentRoomCode = null;
         }
 
         showView('home');
       } catch (err) {
-        console.error('인증 초기화 오류:', err);
+        console.error('초기화 인증 오류:', err);
         showView('home');
-        showModal({
-          icon: '⚠️',
-          title: '연결 안내',
-          message: '서버 연결 설정을 확인해 주세요. 인터넷이 연결되어 있는지 확인 후 새로고침해 주세요.'
-        });
       }
     }
 
