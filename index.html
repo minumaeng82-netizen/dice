@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>김천다수초등학교 과학실 주사위 게임</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Jua & Noto Sans KR (초등학생 가독성 및 친근한 폰트) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #fef9c3 100%);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .font-jua {
+      font-family: 'Jua', sans-serif;
+    }
+
+    /* 3D 주사위 스타일 */
+    .dice-scene {
+      width: 140px;
+      height: 140px;
+      perspective: 600px;
+    }
+    @media (min-width: 768px) {
+      .dice-scene {
+        width: 170px;
+        height: 170px;
+      }
+    }
+    .dice-cube {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .dice-cube.rolling {
+      animation: diceSpin 0.45s infinite linear;
+    }
+    @keyframes diceSpin {
+      0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+      50% { transform: rotateX(180deg) rotateY(220deg) rotateZ(90deg); }
+      100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg); }
+    }
+    .dice-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      border: 4px solid #cbd5e1;
+      border-radius: 24px;
+      box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.08), 0 8px 20px rgba(0, 0, 0, 0.12);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      padding: 16px;
+      gap: 6px;
+    }
+    .dot {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background-color: #1e293b;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+    }
+    .dot.red {
+      background-color: #ef4444;
+    }
+
+    /* 주사위 6면 배치 (140px 기준 translateZ 70px, CSS 변수로 반응형 대응) */
+    .dice-scene { --tz: 70px; }
+    @media (min-width: 768px) { .dice-scene { --tz: 85px; } }
+
+    .face-1 { transform: rotateY(0deg) translateZ(var(--tz)); }
+    .face-2 { transform: rotateY(90deg) translateZ(var(--tz)); }
+    .face-3 { transform: rotateY(180deg) translateZ(var(--tz)); }
+    .face-4 { transform: rotateY(-90deg) translateZ(var(--tz)); }
+    .face-5 { transform: rotateX(90deg) translateZ(var(--tz)); }
+    .face-6 { transform: rotateX(-90deg) translateZ(var(--tz)); }
+
+    /* 주사위 결과별 회전 각도 */
+    .show-1 { transform: rotateX(0deg) rotateY(0deg); }
+    .show-2 { transform: rotateX(0deg) rotateY(-90deg); }
+    .show-3 { transform: rotateX(0deg) rotateY(-180deg); }
+    .show-4 { transform: rotateX(0deg) rotateY(90deg); }
+    .show-5 { transform: rotateX(-90deg) rotateY(0deg); }
+    .show-6 { transform: rotateX(90deg) rotateY(0deg); }
+
+    /* 버튼 입체 효과 */
+    .btn-push {
+      transition: all 0.12s ease;
+      box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
+    }
+    .btn-push:active:not(:disabled) {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+    }
+    .btn-push:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: translateY(2px);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col text-slate-800">
+
+  <!-- 상단 공통 헤더 -->
+  <header class="bg-white/95 backdrop-blur border-b-4 border-sky-300 shadow-sm sticky top-0 z-30">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-sky-500 text-white flex items-center justify-center text-2xl shadow-inner shrink-0">
+          🔬
+        </div>
+        <div>
+          <h1 class="font-jua text-xl sm:text-2xl md:text-3xl text-sky-900 tracking-wide leading-tight">
+            김천다수초등학교 과학실 주사위 게임
+          </h1>
+          <p id="header-subtitle" class="text-xs sm:text-sm text-sky-700 font-bold">
+            태블릿으로 함께하는 실시간 모둠 활동
+          </p>
+        </div>
+      </div>
+
+      <!-- 방 접속 중일 때 우측 상단 정보 및 나가기 버튼 -->
+      <div id="header-room-controls" class="hidden items-center gap-2 sm:gap-3">
+        <div class="bg-amber-100 border-2 border-amber-400 px-3 py-1.5 rounded-2xl text-center">
+          <span class="block text-[11px] font-bold text-amber-800 leading-none">방 번호</span>
+          <span id="header-room-code" class="font-jua text-xl sm:text-2xl text-amber-950 tracking-widest leading-tight">----</span>
+        </div>
+        <button id="btn-leave-room" type="button"
+          class="btn-push bg-rose-500 hover:bg-rose-600 text-white font-bold px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl text-sm sm:text-base flex items-center gap-1.5 shrink-0">
+          <span>🚪</span>
+          <span>방 나가기</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 네트워크 / 연결 상태 경고 배너 -->
+    <div id="connection-banner" class="hidden bg-amber-500 text-white text-center py-2 px-4 font-bold text-sm sm:text-base animate-pulse">
+      ⚠️ 연결을 다시 확인하고 있어요... 잠시만 기다려 주세요!
+    </div>
+  </header>
+
+  <!-- 메인 컨테이너 -->
+  <main class="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center">
+
+    <!-- 0. 초기 인증 로딩 화면 -->
+    <section id="view-loading" class="bg-white rounded-3xl shadow-xl border-4 border-sky-200 p-8 text-center my-auto">
+      <div class="text-5xl mb-4 animate-bounce">🧪</div>
+      <h2 class="font-jua text-2xl sm:text-3xl text-sky-900 mb-2">과학실 주사위 준비 중...</h2>
+      <p class="text-slate-600 font-medium">서버와 안전하게 연결하고 있어요.</p>
+    </section>
+
+    <!-- 1. 첫 화면 (홈: 방 만들기 / 방 들어가기) -->
+    <section id="view-home" class="hidden flex-col gap-6 my-auto">
+      <div class="bg-white/95 rounded-3xl shadow-xl border-4 border-sky-200 p-6 sm:p-10 text-center">
+        <div class="inline-flex items-center gap-2 bg-sky-100 text-sky-800 px-4 py-1.5 rounded-full font-bold text-sm sm:text-base mb-4">
+          <span>🎲 최대 4명 실시간 참여</span>
+          <span>•</span>
+          <span>📱 별도 로그인 없음</span>
+        </div>
+        <h2 class="font-jua text-3xl sm:text-4xl md:text-5xl text-slate-800 mb-3">
+          우리 모둠 차례를 정하고<br class="sm:hidden" /> 주사위를 굴려요!
+        </h2>
+        <p class="text-slate-600 text-base sm:text-lg font-medium mb-8 max-w-xl mx-auto">
+          모둠장 한 명이 <strong>[방 만들기]</strong>를 누르고, 나머지 친구들은 화면에 나온 4자리 숫자를 입력해 들어오세요.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto">
+          <button id="btn-create-room" type="button"
+            class="btn-push bg-sky-500 hover:bg-sky-600 text-white rounded-3xl p-7 sm:p-9 flex flex-col items-center justify-center gap-3 border-4 border-sky-300">
+            <span class="text-5xl sm:text-6xl">🏠</span>
+            <span class="font-jua text-3xl sm:text-4xl tracking-wide">방 만들기</span>
+            <span class="text-sky-100 text-sm sm:text-base font-bold">새로운 4자리 방 번호를 만들어요</span>
+          </button>
+
+          <button id="btn-go-join" type="button"
+            class="btn-push bg-emerald-500 hover:bg-emerald-600 text-white rounded-3xl p-7 sm:p-9 flex flex-col items-center justify-center gap-3 border-4 border-emerald-300">
+            <span class="text-5xl sm:text-6xl">🔢</span>
+            <span class="font-jua text-3xl sm:text-4xl tracking-wide">방 들어가기</span>
+            <span class="text-emerald-100 text-sm sm:text-base font-bold">친구 화면의 4자리 번호를 눌러요</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1-2. 방 들어가기 (태블릿 큰 숫자 키패드) -->
+    <section id="view-join" class="hidden flex-col my-auto max-w-lg w-full mx-auto">
+      <div class="bg-white rounded-3xl shadow-xl border-4 border-emerald-300 p-6 sm:p-8">
+        <div class="flex items-center justify-between mb-4">
+          <button id="btn-back-home" type="button"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-2xl text-base">
+            ← 뒤로
+          </button>
+          <span class="font-jua text-xl sm:text-2xl text-emerald-800">방 번호 4자리 입력</span>
+          <div class="w-16"></div>
+        </div>
+
+        <!-- 4자리 숫자 표시 칸 -->
+        <div class="grid grid-cols-4 gap-3 my-5" id="pin-display">
+          <div class="pin-box h-16 sm:h-20 rounded-2xl border-4 border-slate-300 bg-slate-50 flex items-center justify-center font-jua text-4xl sm:text-5xl text-slate-800"></div>
+          <div class="pin-box h-16 sm:h-20 rounded-2xl border-4 border-slate-300 bg-slate-50 flex items-center justify-center font-jua text-4xl sm:text-5xl text-slate-800"></div>
+          <div class="pin-box h-16 sm:h-20 rounded-2xl border-4 border-slate-300 bg-slate-50 flex items-center justify-center font-jua text-4xl sm:text-5xl text-slate-800"></div>
+          <div class="pin-box h-16 sm:h-20 rounded-2xl border-4 border-slate-300 bg-slate-50 flex items-center justify-center font-jua text-4xl sm:text-5xl text-slate-800"></div>
+        </div>
+
+        <!-- 오류/안내 메시지 박스 -->
+        <div id="join-error-box" class="hidden mb-4 p-3.5 rounded-2xl bg-rose-100 border-2 border-rose-400 text-rose-900 font-bold text-center text-sm sm:text-base">
+        </div>
+
+        <!-- 태블릿 숫자 키패드 -->
+        <div class="grid grid-cols-3 gap-3 mb-5">
+          <button type="button" data-key="1" class="keypad-btn btn-push bg-slate-100 hover:bg-slate-200 active:bg-emerald-100 text-slate-800 font-jua text-3xl sm:text-4xl py-4 sm:py-5 rounded-2xl border-2 border-slate-300">1</button>
+          <button type="button" data-key="2" class="keypad-btn btn-push bg-slate-100 hover:bg-slate-200 active:bg-emerald-100 text-slate-800 font-jua text-3xl sm:text-4xl py-4 sm:py-5 rounded-2xl border-2 border-slate-300">2</button>
+          <button type="button" data-key="3" class="keypad-btn btn-push bg-slate-100 hover:bg-slate-200 active:bg-emerald-100 text-slate-800 font-jua text-3xl sm:text-4xl py-4 sm:py-5 rounded-2xl border-2 border-slate-300">3</button>
+          <button type="button" data-key="4" class="keypad-btn btn-push bg-slate-100 hover:bg-slate-200 active:bg-emerald-100 text-slate-800 font-jua text-3xl sm:text-4xl py-4 sm:py-5 rounded-2xl border-2 border-slate-300">4</button>
+          <button type="button" data-key="5" class="keypad-btn btn-push bg-slate-100 hover:bg-slate-200 active:bg-emerald-100 text-slate-800 font-jua text-3xl sm:text-4xl py-4 sm:py-5 rounded-2xl border-2 border-slate-300">5</button>
+          <button type="button" data-key="6" class="keypad-btn btn-push bg-slate-100 hover:bg-slate-200 active:bg-emerald-100 text-slate-800 font-jua text-3xl sm:text-4xl py-4 sm:py-5 rounded-2xl border-2 border-slate-300">6</button>
+          <button type="button" data-key="7" class="keypad-btn btn-push bg-slate-100 hover:bg-slate-200 active:bg-emerald-100 text-slate-800 font-jua text-3xl sm:text-4xl py-4 sm:py-5 rounded-2xl border-2 border-slate-300">7</button>
+          <button type="button" data-key="8" class="keypad-btn btn-push bg-slate-100 hover:bg-slate-200 active:bg-emerald-100 text-slate-800 font-jua text-3xl sm:text-4xl py-4 sm:py-5 rounded-2xl border-2 border-slate-300">8</button>
+          <button type="button" data-key="9" class="keypad-btn btn-push bg-slate-100 hover:bg-slate-200 active:bg-emerald-100 text-slate-800 font-jua text-3xl sm:text-4xl py-4 sm:py-5 rounded-2xl border-2 border-slate-300">9</button>
+          <button type="button" id="key-clear" class="btn-push bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-lg sm:text-xl py-4 sm:py-5 rounded-2xl border-2 border-amber-300">전체 지움</button>
+          <button type="button" data-key="0" class="keypad-btn btn-push bg-slate-100 hover:bg-slate-200 active:bg-emerald-100 text-slate-800 font-jua text-3xl sm:text-4xl py-4 sm:py-5 rounded-2xl border-2 border-slate-300">0</button>
+          <button type="button" id="key-del" class="btn-push bg-rose-100 hover:bg-rose-200 text-rose-900 font-bold text-xl sm:text-2xl py-4 sm:py-5 rounded-2xl border-2 border-rose-300">⌫ 지우기</button>
+        </div>
+
+        <button id="btn-submit-join" type="button" disabled
+          class="btn-push w-full bg-emerald-500 hover:bg-emerald-600 text-white font-jua text-2xl sm:text-3xl py-4 sm:py-5 rounded-2xl border-4 border-emerald-300">
+          방 들어가기
+        </button>
+      </div>
+    </section>
+
+    <!-- 2. 대기실 (Lobby) -->
+    <section id="view-lobby" class="hidden flex-col gap-5 my-auto">
+      <div class="bg-white rounded-3xl shadow-xl border-4 border-sky-300 p-6 sm:p-8">
+        <!-- 방 번호 안내 카드 -->
+        <div class="bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-100 border-4 border-amber-400 rounded-3xl p-5 sm:p-6 text-center mb-6">
+          <p class="text-amber-900 font-bold text-base sm:text-lg mb-1">친구들에게 아래 4자리 방 번호를 알려 주세요!</p>
+          <div id="lobby-room-code" class="font-jua text-6xl sm:text-7xl md:text-8xl text-amber-950 tracking-[0.2em] pl-[0.2em] my-1">
+            0000
+          </div>
+          <p class="text-amber-800 text-sm sm:text-base font-bold mt-1">
+            현재 모인 친구: <span id="lobby-count" class="text-sky-700 text-lg sm:text-xl">1</span> / 4명
+          </p>
+        </div>
+
+        <!-- 참가자 목록 -->
+        <div class="mb-6">
+          <h3 class="font-jua text-xl sm:text-2xl text-slate-800 mb-3 flex items-center gap-2">
+            <span>👥 모둠 참가자 명단</span>
+            <span class="text-xs sm:text-sm font-sans font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">최소 2명 ~ 최대 4명</span>
+          </h3>
+          <div id="lobby-players-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <!-- JS로 동적 렌더링 -->
+          </div>
+        </div>
+
+        <!-- 방장 전용 시작 버튼 / 참가자 대기 안내 -->
+        <div id="lobby-host-panel" class="hidden">
+          <button id="btn-start-ladder" type="button" disabled
+            class="btn-push w-full bg-indigo-600 hover:bg-indigo-700 text-white font-jua text-2xl sm:text-3xl py-5 rounded-2xl border-4 border-indigo-300">
+            🪜 사다리 타기 시작
+          </button>
+          <p id="lobby-host-hint" class="text-center text-slate-600 font-bold text-sm sm:text-base mt-2.5">
+            2명 이상 모이면 사다리 타기를 시작할 수 있어요!
+          </p>
+        </div>
+
+        <div id="lobby-guest-panel" class="hidden bg-sky-50 border-2 border-sky-200 rounded-2xl p-5 text-center">
+          <p class="font-jua text-xl sm:text-2xl text-sky-900 mb-1">방장이 [사다리 타기 시작]을 누를 때까지 기다려 주세요!</p>
+          <p class="text-sky-700 font-bold text-sm sm:text-base">모든 친구가 들어오면 사다리 타기로 주사위 순서를 정해요.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 사다리 게임 (Ladder) -->
+    <section id="view-ladder" class="hidden flex-col gap-4 my-auto">
+      <div class="bg-white rounded-3xl shadow-xl border-4 border-indigo-300 p-4 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <span class="inline-block bg-indigo-100 text-indigo-800 font-bold text-xs sm:text-sm px-3 py-1 rounded-full mb-1">1단계: 순서 정하기</span>
+            <h2 class="font-jua text-2xl sm:text-3xl text-slate-800">사다리 타기로 주사위 순서를 정해요!</h2>
+          </div>
+          <div id="ladder-status-badge" class="bg-amber-100 border-2 border-amber-400 text-amber-900 font-bold px-4 py-2 rounded-2xl text-sm sm:text-base">
+            경로를 따라가는 중...
+          </div>
+        </div>
+
+        <!-- 사다리 SVG 영역 -->
+        <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-2 sm:p-4 mb-4 overflow-hidden">
+          <svg id="ladder-svg" class="w-full h-[320px] sm:h-[380px] md:h-[420px] block" viewBox="0 0 800 440" preserveAspectRatio="xMidYMid meet">
+            <!-- JS로 사다리 선, 이름, 도착 순번, 애니메이션 경로 렌더링 -->
+          </svg>
+        </div>
+
+        <!-- 참가자별 도착 결과 배지 목록 -->
+        <div id="ladder-individual-results" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+          <!-- JS로 렌더링 -->
+        </div>
+
+        <!-- 발표 완료 후 최종 확정 순서 배너 -->
+        <div id="ladder-final-banner" class="hidden bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-4 border-emerald-400 rounded-2xl p-4 sm:p-5 text-center mb-4">
+          <p class="text-emerald-800 font-bold text-sm sm:text-base mb-1">🎉 주사위 굴리기 순서가 확정되었어요!</p>
+          <div id="ladder-final-order-text" class="font-jua text-xl sm:text-2xl md:text-3xl text-emerald-950 leading-relaxed">
+            <!-- 예: 1번: 참가자 3 → 2번: 참가자 1 → 3번: 참가자 2 -->
+          </div>
+        </div>
+
+        <!-- 방장 전용 [주사위 게임 시작] 버튼 -->
+        <div id="ladder-host-controls" class="hidden">
+          <button id="btn-start-dice" type="button"
+            class="btn-push w-full bg-emerald-500 hover:bg-emerald-600 text-white font-jua text-2xl sm:text-3xl py-4 sm:py-5 rounded-2xl border-4 border-emerald-300">
+            🎲 주사위 게임 시작
+          </button>
+        </div>
+        <div id="ladder-guest-wait" class="hidden text-center text-slate-600 font-bold text-sm sm:text-base py-2">
+          발표가 끝나면 방장이 [주사위 게임 시작]을 눌러 게임을 시작해요!
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 주사위 게임 (Dice) -->
+    <section id="view-dice" class="hidden flex-col gap-4 my-auto">
+      <!-- 상단: 전체 순서 및 현재 차례 표시 바 -->
+      <div class="bg-white rounded-3xl shadow-md border-4 border-sky-200 p-4 sm:p-5">
+        <div class="flex items-center justify-between mb-2.5">
+          <span class="font-jua text-lg sm:text-xl text-slate-700">📋 주사위 굴리기 순서</span>
+          <span class="text-xs sm:text-sm font-bold text-slate-500">1번부터 차례대로 돌아가요</span>
+        </div>
+        <div id="dice-order-strip" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <!-- JS로 순서 카드 렌더링 -->
+        </div>
+      </div>
+
+      <!-- 중앙: 주사위 무대 + 최근 기록 (가로 화면 2단, 세로 화면 1단) -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- 주사위 무대 (2칸 차지) -->
+        <div class="lg:col-span-2 bg-white rounded-3xl shadow-xl border-4 border-amber-300 p-6 sm:p-8 flex flex-col items-center justify-between text-center">
+          <!-- 현재 차례 안내 배지 -->
+          <div id="dice-turn-banner" class="w-full rounded-2xl py-3 px-4 mb-4 font-jua text-2xl sm:text-3xl border-2">
+            <!-- 내 차례예요! / 참가자 2의 차례예요 -->
+          </div>
+
+          <!-- 3D 주사위 + 숫자 표시 -->
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10 my-4">
+            <div class="dice-scene">
+              <div id="dice-cube" class="dice-cube show-1">
+                <!-- 1면 -->
+                <div class="dice-face face-1">
+                  <div></div><div></div><div></div>
+                  <div></div><div class="dot red"></div><div></div>
+                  <div></div><div></div><div></div>
+                </div>
+                <!-- 2면 -->
+                <div class="dice-face face-2">
+                  <div class="dot"></div><div></div><div></div>
+                  <div></div><div></div><div></div>
+                  <div></div><div></div><div class="dot"></div>
+                </div>
+                <!-- 3면 -->
+                <div class="dice-face face-3">
+                  <div class="dot"></div><div></div><div></div>
+                  <div></div><div class="dot"></div><div></div>
+                  <div></div><div></div><div class="dot"></div>
+                </div>
+                <!-- 4면 -->
+                <div class="dice-face face-4">
+                  <div class="dot"></div><div></div><div class="dot"></div>
+                  <div></div><div></div><div></div>
+                  <div class="dot"></div><div></div><div class="dot"></div>
+                </div>
+                <!-- 5면 -->
+                <div class="dice-face face-5">
+                  <div class="dot"></div><div></div><div class="dot"></div>
+                  <div></div><div class="dot"></div><div></div>
+                  <div class="dot"></div><div></div><div class="dot"></div>
+                </div>
+                <!-- 6면 -->
+                <div class="dice-face face-6">
+                  <div class="dot"></div><div></div><div class="dot"></div>
+                  <div class="dot"></div><div></div><div class="dot"></div>
+                  <div class="dot"></div><div></div><div class="dot"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 나온 눈 큰 숫자 카드 -->
+            <div class="bg-slate-50 border-4 border-slate-200 rounded-3xl px-7 py-4 min-w-[150px]">
+              <span class="block text-sm font-bold text-slate-500 mb-1">나온 주사위 눈</span>
+              <div id="dice-number-text" class="font-jua text-6xl sm:text-7xl text-sky-600 leading-none">
+                -
+              </div>
+              <div id="dice-last-roller" class="text-sm font-bold text-slate-600 mt-2">
+                아직 굴리지 않았어요
+              </div>
+            </div>
+          </div>
+
+          <!-- 큰 [주사위 굴리기] 버튼 영역 -->
+          <div class="w-full max-w-md mt-4">
+            <button id="btn-roll-dice" type="button" disabled
+              class="btn-push w-full bg-amber-500 hover:bg-amber-600 text-white font-jua text-3xl sm:text-4xl py-5 sm:py-6 rounded-3xl border-4 border-amber-300 flex items-center justify-center gap-3">
+              <span>🎲</span>
+              <span id="btn-roll-text">주사위 굴리기</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 우측/하단: 최근 5회 결과 기록 -->
+        <div class="bg-white rounded-3xl shadow-xl border-4 border-slate-200 p-5 sm:p-6 flex flex-col">
+          <div class="flex items-center justify-between border-b-2 border-slate-100 pb-3 mb-3">
+            <h3 class="font-jua text-xl sm:text-2xl text-slate-800">🕒 최근 5회 결과</h3>
+            <span class="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">최신순</span>
+          </div>
+          <div id="dice-history-list" class="flex-1 flex flex-col gap-2.5 justify-start">
+            <div class="text-center text-slate-400 font-bold py-8">
+              주사위를 굴리면 여기에 기록이 나타나요!
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 공용 안내 / 확인 모달 (alert, confirm 대체) -->
+  <div id="modal-backdrop" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border-4 border-sky-300 shadow-2xl max-w-md w-full p-6 sm:p-7 text-center">
+      <div id="modal-icon" class="text-5xl mb-3">💬</div>
+      <h3 id="modal-title" class="font-jua text-2xl sm:text-3xl text-slate-800 mb-2">안내</h3>
+      <p id="modal-message" class="text-slate-600 font-bold text-base sm:text-lg mb-6 leading-relaxed"></p>
+      <div id="modal-actions" class="flex gap-3 justify-center">
+        <!-- JS로 버튼 삽입 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase & 앱 로직 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      setDoc,
+      onSnapshot,
+      runTransaction,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // =========================================================================
+    // 1. Firebase 초기화 및 전역 환경 설정
+    // =========================================================================
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'gimcheon-dasu-science-dice';
+    const firebaseConfig = typeof __firebase_config !== 'undefined'
+      ? JSON.parse(__firebase_config)
+      : {
+          // 독립 배포 시 본인의 Firebase 프로젝트 설정으로 교체하세요.
+          apiKey: "YOUR_API_KEY",
+          authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+          projectId: "YOUR_PROJECT_ID",
+          storageBucket: "YOUR_PROJECT_ID.appspot.com",
+          messagingSenderId: "YOUR_SENDER_ID",
+          appId: "YOUR_APP_ID"
+        };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Firestore 방 문서 경로 헬퍼 (규칙 준수: /artifacts/{appId}/public/data/rooms/{roomCode})
+    const getRoomRef = (roomCode) => doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode);
+
+    // =========================================================================
+    // 2. 세션 관리 (새로고침 시 동일 참가자 복귀 보장)
+    // =========================================================================
+    const SESSION_KEY_PARTICIPANT = 'gds_science_participant_id';
+    const SESSION_KEY_ROOM = 'gds_science_active_room';
+
+    function getOrCreateParticipantId() {
+      let pid = sessionStorage.getItem(SESSION_KEY_PARTICIPANT);
+      if (!pid) {
+        pid = 'p_' + crypto.randomUUID();
+        sessionStorage.setItem(SESSION_KEY_PARTICIPANT, pid);
+      }
+      return pid;
+    }
+
+    const myParticipantId = getOrCreateParticipantId();
+    let currentUser = null;
+    let currentRoomCode = sessionStorage.getItem(SESSION_KEY_ROOM) || null;
+    let unsubscribeRoom = null;
+    let latestRoomData = null;
+
+    // UI 및 동작 상태 플래그
+    let isOnline = navigator.onLine;
+    let isSnapshotSynced = false;
+    let isRollingRequestInFlight = false;
+    let lastAnimatedRollId = null;
+    let ladderAnimStartedForRoom = null;
+    let ladderAnimFinished = false;
+    let ladderAnimTimer = null;
+
+    // 참가자 색상 팔레트 (색맹/가독성 고려 선명한 구분)
+    const PLAYER_COLORS = [
+      { bg: 'bg-sky-100', border: 'border-sky-400', text: 'text-sky-900', hex: '#0284c7', badge: 'bg-sky-600' },
+      { bg: 'bg-emerald-100', border: 'border-emerald-400', text: 'text-emerald-900', hex: '#059669', badge: 'bg-emerald-600' },
+      { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-900', hex: '#d97706', badge: 'bg-amber-600' },
+      { bg: 'bg-purple-100', border: 'border-purple-400', text: 'text-purple-900', hex: '#7c3aed', badge: 'bg-purple-600' }
+    ];
+
+    // =========================================================================
+    // 3. DOM 요소 참조 및 화면 전환 헬퍼
+    // =========================================================================
+    const views = {
+      loading: document.getElementById('view-loading'),
+      home: document.getElementById('view-home'),
+      join: document.getElementById('view-join'),
+      lobby: document.getElementById('view-lobby'),
+      ladder: document.getElementById('view-ladder'),
+      dice: document.getElementById('view-dice')
+    };
+
+    function showView(viewName) {
+      Object.entries(views).forEach(([key, el]) => {
+        if (key === viewName) {
+          el.classList.remove('hidden');
+          if (key !== 'loading') el.classList.add('flex');
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('flex');
+        }
+      });
+
+      const inRoom = ['lobby', 'ladder', 'dice'].includes(viewName);
+      const headerControls = document.getElementById('header-room-controls');
+      if (inRoom && currentRoomCode) {
+        headerControls.classList.remove('hidden');
+        headerControls.classList.add('flex');
+        document.getElementById('header-room-code').textContent = currentRoomCode;
+      } else {
+        headerControls.classList.add('hidden');
+        headerControls.classList.remove('flex');
+      }
+    }
+
+    // 커스텀 모달 (alert / confirm 대체)
+    function showModal({ icon = '💬', title = '안내', message = '', confirmText = '확인', cancelText = null, onConfirm = null }) {
+      const backdrop = document.getElementById('modal-backdrop');
+      document.getElementById('modal-icon').textContent = icon;
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-message').textContent = message;
+
+      const actions = document.getElementById('modal-actions');
+      actions.innerHTML = '';
+
+      if (cancelText) {
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'btn-push flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3.5 px-5 rounded-2xl text-lg';
+        cancelBtn.textContent = cancelText;
+        cancelBtn.onclick = () => backdrop.classList.add('hidden');
+        actions.appendChild(cancelBtn);
+      }
+
+      const okBtn = document.createElement('button');
+      okBtn.type = 'button';
+      okBtn.className = 'btn-push flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3.5 px-5 rounded-2xl text-lg';
+      okBtn.textContent = confirmText;
+      okBtn.onclick = () => {
+        backdrop.classList.add('hidden');
+        if (onConfirm) onConfirm();
+      };
+      actions.appendChild(okBtn);
+
+      backdrop.classList.remove('hidden');
+    }
+
+    // 연결 상태 배너 및 주사위 버튼 잠금 동기화
+    function updateConnectionUI() {
+      const banner = document.getElementById('connection-banner');
+      const healthy = isOnline && (!currentRoomCode || isSnapshotSynced);
+      if (!healthy) {
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+      if (latestRoomData && latestRoomData.status === 'dice') {
+        renderDiceView(latestRoomData);
+      }
+    }
+
+    window.addEventListener('online', () => {
+      isOnline = true;
+      updateConnectionUI();
+    });
+    window.addEventListener('offline', () => {
+      isOnline = false;
+      updateConnectionUI();
+    });
+
+    // =========================================================================
+    // 4. 암호학적 난수 및 사다리 데이터 생성 알고리즘
+    // =========================================================================
+    function getSecureRandomInt(maxExclusive) {
+      const array = new Uint32Array(1);
+      crypto.getRandomValues(array);
+      return array[0] % maxExclusive;
+    }
+
+    function generate4DigitCode() {
+      const num = getSecureRandomInt(10000);
+      return String(num).padStart(4, '0');
+    }
+
+    /**
+     * N명의 참가자에 대해:
+     * 1) 인접 세로줄만 연결하고, 같은 높이에서 끝점을 공유하지 않는 유효한 가로줄 생성
+     * 2) 생성된 가로줄을 실제로 위에서 아래로 따라 내려갔을 때의 최종 도착 순번(1~N)을 계산
+     * 3) 도착 순번이 반드시 1~N의 일대일 순열이 됨을 보장
+     */
+    function generateVerifiedLadder(playerCount) {
+      const levels = 7; // 가로줄 층 수 (충분한 교차 보장)
+      const rungs = []; // { level: 0..levels-1, col: 0..playerCount-2 }
+
+      for (let lv = 0; lv < levels; lv++) {
+        let c = 0;
+        while (c < playerCount - 1) {
+          // 약 55% 확률로 가로줄 배치 (단, 바로 왼쪽에 가로줄이 있으면 건너뛰어 끝점 공유 방지)
+          if (getSecureRandomInt(100) < 55) {
+            rungs.push({ level: lv, col: c });
+            c += 2; // 인접 세로줄과 끝점을 공유하지 않도록 한 칸 건너뜀
+          } else {
+            c += 1;
+          }
+        }
+      }
+
+      // 최소 1개 이상의 가로줄 보장
+      if (rungs.length === 0) {
+        rungs.push({ level: Math.floor(levels / 2), col: 0 });
+      }
+
+      // 실제 사다리 경로 추적하여 각 시작 열(0..N-1)의 도착 열(0..N-1) 계산
+      const startToDest = [];
+      for (let startCol = 0; startCol < playerCount; startCol++) {
+        let currCol = startCol;
+        for (let lv = 0; lv < levels; lv++) {
+          const rightRung = rungs.find(r => r.level === lv && r.col === currCol);
+          const leftRung = rungs.find(r => r.level === lv && r.col === currCol - 1);
+          if (rightRung) {
+            currCol += 1;
+          } else if (leftRung) {
+            currCol -= 1;
+          }
+        }
+        startToDest.push(currCol); // 0-based 도착 순번 (0 -> 1번 차례)
+      }
+
+      return {
+        levels,
+        rungs,
+        startToDest // startToDest[i] = i번째 참가자의 도착 순번 인덱스 (0이면 1번 차례)
+      };
+    }
+
+    // =========================================================================
+    // 5. 방 만들기 / 방 들어가기 (Firestore 트랜잭션)
+    // =========================================================================
+    async function createRoom() {
+      if (!currentUser || !isOnline) {
+        showModal({ icon: '📡', title: '연결 확인', message: '인터넷 연결을 확인한 뒤 다시 눌러 주세요.' });
+        return;
+      }
+
+      const btn = document.getElementById('btn-create-room');
+      btn.disabled = true;
+
+      try {
+        let createdCode = null;
+        // 최대 15회 시도하여 열려 있는 다른 방과 겹치지 않는 4자리 번호 발급
+        for (let attempt = 0; attempt < 15; attempt++) {
+          const candidateCode = generate4DigitCode();
+          const roomRef = getRoomRef(candidateCode);
+
+          const success = await runTransaction(db, async (tx) => {
+            const snap = await tx.get(roomRef);
+            if (snap.exists()) {
+              const data = snap.data();
+              // 닫히지 않고 활성 상태인 방이 이미 있으면 충돌 처리
+              if (data.status && data.status !== 'closed') {
+                return false;
+              }
+            }
+
+            const hostPlayer = {
+              participantId: myParticipantId,
+              uid: currentUser.uid,
+              name: '참가자 1',
+              joinIndex: 1,
+              active: true,
+              joinedAt: Date.now()
+            };
+
+            tx.set(roomRef, {
+              roomCode: candidateCode,
+              status: 'lobby', // 'lobby' | 'ladder' | 'dice' | 'closed'
+              hostId: myParticipantId,
+              nextJoinIndex: 2,
+              players: [hostPlayer],
+              ladder: null,
+              turnOrder: [], // 확정된 주사위 순서 (participantId 배열)
+              currentTurnIndex: 0,
+              rollCount: 0,
+              lastRoll: null, // { id, participantId, name, value }
+              rollHistory: [], // 최근 5회 [{ participantId, name, value }]
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+            return true;
+          });
+
+          if (success) {
+            createdCode = candidateCode;
+            break;
+          }
+        }
+
+        if (!createdCode) {
+          throw new Error('사용 가능한 방 번호를 찾지 못했습니다.');
+        }
+
+        enterRoomSession(createdCode);
+      } catch (err) {
+        console.error('방 만들기 오류:', err);
+        showModal({
+          icon: '😥',
+          title: '방을 만들지 못했어요',
+          message: '잠시 후 다시 [방 만들기] 버튼을 눌러 주세요.'
+        });
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function joinRoomByCode(code) {
+      if (!currentUser || !isOnline) {
+        showJoinError('인터넷 연결을 확인한 뒤 다시 시도해 주세요.');
+        return;
+      }
+
+      const submitBtn = document.getElementById('btn-submit-join');
+      submitBtn.disabled = true;
+      hideJoinError();
+
+      try {
+        const roomRef = getRoomRef(code);
+
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(roomRef);
+          if (!snap.exists()) {
+            throw new Error('ROOM_NOT_FOUND');
+          }
+
+          const data = snap.data();
+          if (data.status === 'closed') {
+            throw new Error('ROOM_CLOSED');
+          }
+
+          const players = Array.isArray(data.players) ? [...data.players] : [];
+          const existingIdx = players.findIndex(p => p.participantId === myParticipantId);
+
+          // 1) 이미 명단에 있는 기존 참가자의 재접속인 경우
+          if (existingIdx !== -1) {
+            const existingPlayer = players[existingIdx];
+            if (!existingPlayer.active) {
+              throw new Error('ALREADY_LEFT');
+            }
+            // uid 갱신만 수행하고 기존 자리 유지
+            players[existingIdx] = { ...existingPlayer, uid: currentUser.uid };
+            tx.update(roomRef, { players, updatedAt: serverTimestamp() });
+            return;
+          }
+
+          // 2) 신규 입장인 경우 상태 및 정원 검사
+          if (data.status !== 'lobby') {
+            throw new Error('GAME_ALREADY_STARTED');
+          }
+
+          const activePlayers = players.filter(p => p.active);
+          if (activePlayers.length >= 4) {
+            throw new Error('ROOM_FULL');
+          }
+
+          const joinIndex = data.nextJoinIndex || (players.length + 1);
+          const newPlayer = {
+            participantId: myParticipantId,
+            uid: currentUser.uid,
+            name: `참가자 ${joinIndex}`,
+            joinIndex,
+            active: true,
+            joinedAt: Date.now()
+          };
+
+          players.push(newPlayer);
+          tx.update(roomRef, {
+            players,
+            nextJoinIndex: joinIndex + 1,
+            updatedAt: serverTimestamp()
+          });
+        });
+
+        enterRoomSession(code);
+      } catch (err) {
+        const msgMap = {
+          ROOM_NOT_FOUND: `‘${code}’번 방을 찾을 수 없어요. 번호를 다시 확인해 주세요!`,
+          ROOM_CLOSED: '모두 나가서 이미 닫힌 방이에요.',
+          ROOM_FULL: '방 정원(4명)이 다 차서 들어갈 수 없어요.',
+          GAME_ALREADY_STARTED: '이미 사다리 타기가 시작되어 새로 들어갈 수 없어요.',
+          ALREADY_LEFT: '이미 나간 방에는 다시 들어갈 수 없어요.'
+        };
+        showJoinError(msgMap[err.message] || '방에 들어가는 중 문제가 생겼어요. 다시 눌러 주세요.');
+      } finally {
+        submitBtn.disabled = enteredPin.length !== 4;
+      }
+    }
+
+    // =========================================================================
+    // 6. 실시간 방 구독 및 세션 복구
+    // =========================================================================
+    function enterRoomSession(roomCode) {
+      currentRoomCode = roomCode;
+      sessionStorage.setItem(SESSION_KEY_ROOM, roomCode);
+      ladderAnimStartedForRoom = null;
+      ladderAnimFinished = false;
+      if (ladderAnimTimer) {
+        clearInterval(ladderAnimTimer);
+        ladderAnimTimer = null;
+      }
+
+      if (unsubscribeRoom) {
+        unsubscribeRoom();
+      }
+
+      isSnapshotSynced = false;
+      updateConnectionUI();
+
+      const roomRef = getRoomRef(roomCode);
+      unsubscribeRoom = onSnapshot(
+        roomRef,
+        (snap) => {
+          isSnapshotSynced = true;
+          updateConnectionUI();
+
+          if (!snap.exists()) {
+            clearRoomSessionAndGoHome('방이 종료되어 첫 화면으로 돌아왔어요.');
+            return;
+          }
+
+          const data = snap.data();
+          latestRoomData = data;
+
+          if (data.status === 'closed') {
+            clearRoomSessionAndGoHome('모든 참가자가 나가서 방이 닫혔어요.');
+            return;
+          }
+
+          // 내가 활성 참가자 목록에 있는지 확인
+          const me = (data.players || []).find(p => p.participantId === myParticipantId);
+          if (!me || !me.active) {
+            clearRoomSessionAndGoHome('방에서 나왔어요.');
+            return;
+          }
+
+          // 상태별 화면 렌더링
+          if (data.status === 'lobby') {
+            showView('lobby');
+            renderLobbyView(data);
+          } else if (data.status === 'ladder') {
+            showView('ladder');
+            renderLadderView(data);
+          } else if (data.status === 'dice') {
+            showView('dice');
+            renderDiceView(data);
+          }
+        },
+        (error) => {
+          console.error('실시간 동기화 오류:', error);
+          isSnapshotSynced = false;
+          updateConnectionUI();
+        }
+      );
+    }
+
+    function clearRoomSessionAndGoHome(toastMessage = null) {
+      if (unsubscribeRoom) {
+        unsubscribeRoom();
+        unsubscribeRoom = null;
+      }
+      if (ladderAnimTimer) {
+        clearInterval(ladderAnimTimer);
+        ladderAnimTimer = null;
+      }
+      currentRoomCode = null;
+      latestRoomData = null;
+      sessionStorage.removeItem(SESSION_KEY_ROOM);
+      resetPinInput();
+      showView('home');
+      if (toastMessage) {
+        showModal({ icon: '🏫', title: '알림', message: toastMessage });
+      }
+    }
+
+    // =========================================================================
+    // 7. 대기실 렌더링 및 [사다리 타기 시작]
+    // =========================================================================
+    function renderLobbyView(data) {
+      document.getElementById('lobby-room-code').textContent = data.roomCode;
+      const activePlayers = (data.players || []).filter(p => p.active);
+      document.getElementById('lobby-count').textContent = activePlayers.length;
+
+      const grid = document.getElementById('lobby-players-grid');
+      grid.innerHTML = '';
+
+      for (let i = 0; i < 4; i++) {
+        const player = activePlayers[i];
+        const card = document.createElement('div');
+        if (player) {
+          const color = PLAYER_COLORS[i % PLAYER_COLORS.length];
+          const isMe = player.participantId === myParticipantId;
+          const isHost = player.participantId === data.hostId;
+          card.className = `${color.bg} border-4 ${color.border} rounded-2xl p-4 flex items-center justify-between shadow-sm`;
+          card.innerHTML = `
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-2xl ${color.badge} text-white font-jua text-2xl flex items-center justify-center shadow">
+                ${i + 1}
+              </div>
+              <div>
+                <div class="font-jua text-2xl ${color.text} flex items-center gap-2">
+                  <span>${player.name}</span>
+                  ${isMe ? '<span class="text-xs font-sans font-black bg-white/90 text-slate-800 px-2.5 py-0.5 rounded-full border border-slate-300">나</span>' : ''}
+                </div>
+                <div class="text-xs sm:text-sm font-bold text-slate-600">입장 순서 ${i + 1}번째</div>
+              </div>
+            </div>
+            ${isHost ? '<span class="bg-amber-400 text-amber-950 font-black text-xs sm:text-sm px-3 py-1.5 rounded-xl border-2 border-amber-500 shadow-sm">👑 방장</span>' : ''}
+          `;
+        } else {
+          card.className = 'bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 flex items-center gap-3 text-slate-400';
+          card.innerHTML = `
+            <div class="w-11 h-11 rounded-2xl bg-slate-200 text-slate-400 font-jua text-2xl flex items-center justify-center">?</div>
+            <div class="font-bold text-base sm:text-lg">빈 자리 (친구를 기다리는 중)</div>
+          `;
+        }
+        grid.appendChild(card);
+      }
+
+      const amIHost = data.hostId === myParticipantId;
+      const hostPanel = document.getElementById('lobby-host-panel');
+      const guestPanel = document.getElementById('lobby-guest-panel');
+      const startBtn = document.getElementById('btn-start-ladder');
+      const hint = document.getElementById('lobby-host-hint');
+
+      if (amIHost) {
+        hostPanel.classList.remove('hidden');
+        guestPanel.classList.add('hidden');
+        const canStart = activePlayers.length >= 2 && activePlayers.length <= 4;
+        startBtn.disabled = !canStart || !isOnline || !isSnapshotSynced;
+        hint.textContent = canStart
+          ? `모두 ${activePlayers.length}명이 모였어요! 버튼을 누르면 참가 명단이 확정됩니다.`
+          : '2명 이상 모이면 사다리 타기를 시작할 수 있어요!';
+      } else {
+        hostPanel.classList.add('hidden');
+        guestPanel.classList.remove('hidden');
+      }
+    }
+
+    async function startLadderGame() {
+      if (!currentRoomCode || !isOnline) return;
+      const btn = document.getElementById('btn-start-ladder');
+      btn.disabled = true;
+
+      try {
+        const roomRef = getRoomRef(currentRoomCode);
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(roomRef);
+          if (!snap.exists()) throw new Error('방이 존재하지 않습니다.');
+          const data = snap.data();
+
+          // 서버 레벨 검증: 방장 권한 및 대기실 상태 확인
+          if (data.hostId !== myParticipantId) {
+            throw new Error('방장만 사다리 타기를 시작할 수 있어요.');
+          }
+          if (data.status !== 'lobby') {
+            return; // 이미 시작됨 (중복 클릭 방어)
+          }
+
+          const activePlayers = (data.players || []).filter(p => p.active);
+          if (activePlayers.length < 2 || activePlayers.length > 4) {
+            throw new Error('참가자는 2명에서 4명 사이여야 해요.');
+          }
+
+          // 한 번만 생성되는 검증된 무작위 사다리
+          const ladder = generateVerifiedLadder(activePlayers.length);
+
+          // 사다리 도착 순번(0..N-1)에 따라 확정된 turnOrder(participantId 배열) 계산
+          const orderedParticipants = new Array(activePlayers.length);
+          activePlayers.forEach((player, idx) => {
+            const destRank = ladder.startToDest[idx];
+            orderedParticipants[destRank] = player.participantId;
+          });
+
+          tx.update(roomRef, {
+            status: 'ladder',
+            ladder: {
+              ...ladder,
+              participants: activePlayers.map(p => ({
+                participantId: p.participantId,
+                name: p.name
+              }))
+            },
+            turnOrder: orderedParticipants,
+            currentTurnIndex: 0,
+            updatedAt: serverTimestamp()
+          });
+        });
+      } catch (err) {
+        console.error('사다리 시작 오류:', err);
+        showModal({ icon: '⚠️', title: '알림', message: err.message || '사다리를 시작하지 못했어요.' });
+        btn.disabled = false;
+      }
+    }
+
+    // =========================================================================
+    // 8. 사다리 게임 렌더링, 경로 추적 애니메이션, [주사위 게임 시작]
+    // =========================================================================
+    function computeLadderPolylinePoints(ladder, startCol, colX, topY, bottomY) {
+      const { levels, rungs } = ladder;
+      const stepY = (bottomY - topY) / (levels + 1);
+      let currCol = startCol;
+      const pts = [[colX[currCol], topY]];
+
+      for (let lv = 0; lv < levels; lv++) {
+        const y = topY + stepY * (lv + 1);
+        pts.push([colX[currCol], y]);
+
+        const rightRung = rungs.find(r => r.level === lv && r.col === currCol);
+        const leftRung = rungs.find(r => r.level === lv && r.col === currCol - 1);
+        if (rightRung) {
+          currCol += 1;
+          pts.push([colX[currCol], y]);
+        } else if (leftRung) {
+          currCol -= 1;
+          pts.push([colX[currCol], y]);
+        }
+      }
+      pts.push([colX[currCol], bottomY]);
+      return pts;
+    }
+
+    function renderLadderView(data) {
+      const ladder = data.ladder;
+      if (!ladder || !ladder.participants) return;
+
+      const participants = ladder.participants;
+      const n = participants.length;
+      const svg = document.getElementById('ladder-svg');
+
+      // SVG 좌표 계산
+      const width = 800;
+      const height = 440;
+      const topY = 78;
+      const bottomY = 365;
+      const marginX = n === 2 ? 230 : n === 3 ? 170 : 125;
+      const spacingX = n > 1 ? (width - marginX * 2) / (n - 1) : 0;
+      const colX = Array.from({ length: n }, (_, i) => marginX + i * spacingX);
+      const stepY = (bottomY - topY) / (ladder.levels + 1);
+
+      // 기본 사다리 SVG 그리기
+      let svgHTML = '';
+
+      // 1) 세로줄
+      for (let i = 0; i < n; i++) {
+        svgHTML += `<line x1="${colX[i]}" y1="${topY}" x2="${colX[i]}" y2="${bottomY}" stroke="#94a3b8" stroke-width="8" stroke-linecap="round" />`;
+      }
+
+      // 2) 가로줄
+      for (const r of ladder.rungs) {
+        const y = topY + stepY * (r.level + 1);
+        svgHTML += `<line x1="${colX[r.col]}" y1="${y}" x2="${colX[r.col + 1]}" y2="${y}" stroke="#94a3b8" stroke-width="8" stroke-linecap="round" />`;
+      }
+
+      // 3) 경로 애니메이션 레이어 그룹
+      svgHTML += `<g id="ladder-paths-layer"></g>`;
+
+      // 4) 상단 참가자 이름 배지
+      participants.forEach((p, idx) => {
+        const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
+        const x = colX[idx];
+        svgHTML += `
+          <g>
+            <rect x="${x - 68}" y="14" width="136" height="48" rx="16" fill="${color.hex}" />
+            <text x="${x}" y="45" text-anchor="middle" fill="#ffffff" font-family="'Jua', sans-serif" font-size="24">${p.name}</text>
+          </g>
+        `;
+      });
+
+      // 5) 하단 '1번 차례', '2번 차례'... 배지
+      for (let rank = 0; rank < n; rank++) {
+        const x = colX[rank];
+        svgHTML += `
+          <g>
+            <rect x="${x - 68}" y="380" width="136" height="46" rx="16" fill="#1e293b" />
+            <text x="${x}" y="410" text-anchor="middle" fill="#fde047" font-family="'Jua', sans-serif" font-size="23">${rank + 1}번 차례</text>
+          </g>
+        `;
+      }
+
+      svg.innerHTML = svgHTML;
+
+      // 개별 도착 결과 카드 컨테이너 초기화
+      const resGrid = document.getElementById('ladder-individual-results');
+      resGrid.innerHTML = '';
+      participants.forEach((p, idx) => {
+        const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
+        const destRank = ladder.startToDest[idx] + 1;
+        const activePlayer = (data.players || []).find(ap => ap.participantId === p.participantId && ap.active);
+        const leftNote = activePlayer ? '' : ' <span class="text-xs text-rose-600">(나감)</span>';
+
+        const card = document.createElement('div');
+        card.id = `ladder-res-card-${idx}`;
+        card.className = `${color.bg} border-2 ${color.border} rounded-2xl p-3 text-center transition-all duration-300 opacity-40`;
+        card.innerHTML = `
+          <div class="font-bold text-sm sm:text-base ${color.text}">${p.name}${leftNote}</div>
+          <div id="ladder-res-rank-${idx}" class="font-jua text-xl sm:text-2xl text-slate-800 mt-0.5">확인 중...</div>
+        `;
+        card.dataset.destText = `${destRank}번 차례`;
+        resGrid.appendChild(card);
+      });
+
+      // 방장/참가자 하단 컨트롤 설정
+      const amIHost = data.hostId === myParticipantId;
+      document.getElementById('ladder-host-controls').classList.toggle('hidden', !amIHost || !ladderAnimFinished);
+      document.getElementById('ladder-guest-wait').classList.toggle('hidden', amIHost || !ladderAnimFinished);
+
+      // 방별로 한 번만 순차 경로 애니메이션 실행
+      const animKey = `${data.roomCode}_${n}`;
+      if (ladderAnimStartedForRoom !== animKey) {
+        ladderAnimStartedForRoom = animKey;
+        ladderAnimFinished = false;
+        runLadderSequentialAnimation(data, colX, topY, bottomY);
+      } else if (ladderAnimFinished) {
+        drawAllLadderPathsInstant(data, colX, topY, bottomY);
+      }
+    }
+
+    function drawAllLadderPathsInstant(data, colX, topY, bottomY) {
+      const ladder = data.ladder;
+      const pathsLayer = document.getElementById('ladder-paths-layer');
+      if (!pathsLayer) return;
+      pathsLayer.innerHTML = '';
+
+      ladder.participants.forEach((p, idx) => {
+        const color = PLAYER_COLORS[idx % PLAYER_COLORS.length];
+        const pts = computeLadderPolylinePoints(ladder, idx, colX, topY, bottomY);
+        const pointsAttr = pts.map(pt => pt.join(',')).join(' ');
+        const dashArray = idx % 2 === 1 ? 'stroke-dasharray="14 6"' : '';
+        pathsLayer.innerHTML += `<polyline points="${pointsAttr}" fill="none" stroke="${color.hex}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" ${dashArray} opacity="0.88" />`;
+
+        const card = document.getElementById(`ladder-res-card-${idx}`);
+        const rankEl = document.getElementById(`ladder-res-rank-${idx}`);
+        if (card && rankEl) {
+          card.classList.remove('opacity-40');
+          rankEl.textContent = card.dataset.destText;
+        }
+      });
+
+      finalizeLadderAnnouncement(data);
+    }
+
+    function runLadderSequentialAnimation(data, colX, topY, bottomY) {
+      const ladder = data.ladder;
+      const n = ladder.participants.length;
+      const statusBadge = document.getElementById('ladder-status-badge');
+      let currentPlayerIdx = 0;
+
+      function animateNextParticipant() {
+        if (currentPlayerIdx >= n) {
+          ladderAnimFinished = true;
+          drawAllLadderPathsInstant(data, colX, topY, bottomY);
+          return;
+        }
+
+        const p = ladder.participants[currentPlayerIdx];
+        const color = PLAYER_COLORS[currentPlayerIdx % PLAYER_COLORS.length];
+        statusBadge.textContent = `🔍 ${p.name}의 길을 따라가는 중...`;
+
+        const pts = computeLadderPolylinePoints(ladder, currentPlayerIdx, colX, topY, bottomY);
+        const pathsLayer = document.getElementById('ladder-paths-layer');
+        if (!pathsLayer) return;
+
+        // 이전 경로는 연하게 유지
+        Array.from(pathsLayer.querySelectorAll('polyline')).forEach(el => el.setAttribute('opacity', '0.32'));
+
+        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        poly.setAttribute('fill', 'none');
+        poly.setAttribute('stroke', color.hex);
+        poly.setAttribute('stroke-width', '10');
+        poly.setAttribute('stroke-linecap', 'round');
+        poly.setAttribute('stroke-linejoin', 'round');
+        if (currentPlayerIdx % 2 === 1) {
+          poly.setAttribute('stroke-dasharray', '14 6');
+        }
+        pathsLayer.appendChild(poly);
+
+        // 포인트 단위 부드러운 진행
+        let segIdx = 0;
+        let progress = 0;
+        const speed = 0.14; // 프레임당 세그먼트 진행률
+
+        if (ladderAnimTimer) clearInterval(ladderAnimTimer);
+        ladderAnimTimer = setInterval(() => {
+          progress += speed;
+          if (progress >= 1) {
+            progress = 0;
+            segIdx += 1;
+          }
+
+          if (segIdx >= pts.length - 1) {
+            clearInterval(ladderAnimTimer);
+            ladderAnimTimer = null;
+            poly.setAttribute('points', pts.map(pt => pt.join(',')).join(' '));
+
+            const card = document.getElementById(`ladder-res-card-${currentPlayerIdx}`);
+            const rankEl = document.getElementById(`ladder-res-rank-${currentPlayerIdx}`);
+            if (card && rankEl) {
+              card.classList.remove('opacity-40');
+              card.classList.add('scale-105', 'shadow-md');
+              setTimeout(() => card.classList.remove('scale-105'), 300);
+              rankEl.textContent = card.dataset.destText;
+            }
+
+            currentPlayerIdx += 1;
+            setTimeout(animateNextParticipant, 350);
+            return;
+          }
+
+          const renderedPts = pts.slice(0, segIdx + 1);
+          const [x1, y1] = pts[segIdx];
+          const [x2, y2] = pts[segIdx + 1];
+          const curX = x1 + (x2 - x1) * progress;
+          const curY = y1 + (y2 - y1) * progress;
+          renderedPts.push([curX.toFixed(1), curY.toFixed(1)]);
+          poly.setAttribute('points', renderedPts.map(pt => pt.join(',')).join(' '));
+        }, 24);
+      }
+
+      animateNextParticipant();
+    }
+
+    function finalizeLadderAnnouncement(data) {
+      const statusBadge = document.getElementById('ladder-status-badge');
+      statusBadge.textContent = '✅ 순서 발표 완료!';
+      statusBadge.className = 'bg-emerald-100 border-2 border-emerald-400 text-emerald-900 font-bold px-4 py-2 rounded-2xl text-sm sm:text-base';
+
+      // '1번: 참가자 3 → 2번: 참가자 1 → 3번: 참가자 2' 형식으로 표시 (사다리 원래 결과 기준)
+      const ladder = data.ladder;
+      const orderedNames = new Array(ladder.participants.length);
+      ladder.participants.forEach((p, idx) => {
+        const destRank = ladder.startToDest[idx];
+        orderedNames[destRank] = `${destRank + 1}번: ${p.name}`;
+      });
+
+      document.getElementById('ladder-final-order-text').textContent = orderedNames.join('  →  ');
+      document.getElementById('ladder-final-banner').classList.remove('hidden');
+
+      const amIHost = data.hostId === myParticipantId;
+      document.getElementById('ladder-host-controls').classList.toggle('hidden', !amIHost);
+      document.getElementById('ladder-guest-wait').classList.toggle('hidden', amIHost);
+    }
+
+    async function startDiceStage() {
+      if (!currentRoomCode || !isOnline) return;
+      const btn = document.getElementById('btn-start-dice');
+      btn.disabled = true;
+
+      try {
+        const roomRef = getRoomRef(currentRoomCode);
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(roomRef);
+          if (!snap.exists()) throw new Error('방이 없습니다.');
+          const data = snap.data();
+
+          if (data.hostId !== myParticipantId) {
+            throw new Error('방장만 주사위 게임을 시작할 수 있어요.');
+          }
+          if (data.status !== 'ladder') return;
+
+          // 사다리 도중 나간 참가자를 제외한 활성 순서 정리
+          const activeIds = new Set((data.players || []).filter(p => p.active).map(p => p.participantId));
+          const remainingOrder = (data.turnOrder || []).filter(pid => activeIds.has(pid));
+
+          if (remainingOrder.length === 0) {
+            tx.update(roomRef, { status: 'closed', updatedAt: serverTimestamp() });
+            return;
+          }
+
+          tx.update(roomRef, {
+            status: 'dice',
+            turnOrder: remainingOrder,
+            currentTurnIndex: 0,
+            updatedAt: serverTimestamp()
+          });
+        });
+      } catch (err) {
+        console.error('주사위 단계 전환 오류:', err);
+        btn.disabled = false;
+      }
+    }
+
+    // =========================================================================
+    // 9. 주사위 게임 렌더링 및 원자적 주사위 굴리기
+    // =========================================================================
+    function renderDiceView(data) {
+      const players = data.players || [];
+      const activePlayersMap = new Map(players.filter(p => p.active).map(p => [p.participantId, p]));
+      const turnOrder = (data.turnOrder || []).filter(pid => activePlayersMap.has(pid));
+
+      if (turnOrder.length === 0) return;
+
+      const safeTurnIdx = (data.currentTurnIndex || 0) % turnOrder.length;
+      const currentTurnPid = turnOrder[safeTurnIdx];
+      const currentTurnPlayer = activePlayersMap.get(currentTurnPid);
+      const isMyTurn = currentTurnPid === myParticipantId;
+
+      // 1) 상단 전체 순서 스트립 렌더링
+      const orderStrip = document.getElementById('dice-order-strip');
+      orderStrip.innerHTML = '';
+      turnOrder.forEach((pid, idx) => {
+        const p = activePlayersMap.get(pid);
+        const isCurrent = idx === safeTurnIdx;
+        const isMe = pid === myParticipantId;
+        const card = document.createElement('div');
+        card.className = isCurrent
+          ? 'bg-amber-100 border-4 border-amber-500 rounded-2xl p-3 flex items-center justify-between shadow-md scale-[1.02] transition-all'
+          : 'bg-slate-50 border-2 border-slate-200 rounded-2xl p-3 flex items-center justify-between opacity-85';
+
+        card.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-8 h-8 rounded-xl ${isCurrent ? 'bg-amber-500 text-white' : 'bg-slate-300 text-slate-700'} font-jua text-lg flex items-center justify-center">
+              ${idx + 1}
+            </span>
+            <div>
+              <div class="font-jua text-lg sm:text-xl text-slate-800 leading-tight">
+                ${p.name} ${isMe ? '<span class="text-xs font-sans bg-sky-200 text-sky-900 px-1.5 py-0.5 rounded-full">나</span>' : ''}
+              </div>
+              <div class="text-xs font-bold ${isCurrent ? 'text-amber-800' : 'text-slate-400'}">
+                ${isCurrent ? '▶ 지금 굴릴 차례' : '대기 중'}
+              </div>
+            </div>
+          </div>
+        `;
+        orderStrip.appendChild(card);
+      });
+
+      // 2) 현재 차례 큰 안내 배너
+      const turnBanner = document.getElementById('dice-turn-banner');
+      if (isMyTurn) {
+        turnBanner.className = 'w-full rounded-2xl py-3.5 px-4 mb-4 font-jua text-2xl sm:text-3xl border-4 bg-emerald-100 border-emerald-400 text-emerald-950';
+        turnBanner.textContent = '🌟 내 차례예요! 아래 버튼을 눌러 주사위를 굴리세요!';
+      } else {
+        turnBanner.className = 'w-full rounded-2xl py-3.5 px-4 mb-4 font-jua text-2xl sm:text-3xl border-2 bg-sky-50 border-sky-200 text-sky-900';
+        turnBanner.textContent = `⏳ ${currentTurnPlayer.name}의 차례예요`;
+      }
+
+      // 3) 주사위 굴리기 버튼 상태 (내 차례 + 온라인 + 동기화 완료 + 요청 중 아님)
+      const rollBtn = document.getElementById('btn-roll-dice');
+      const rollBtnText = document.getElementById('btn-roll-text');
+      const canRoll = isMyTurn && isOnline && isSnapshotSynced && !isRollingRequestInFlight;
+
+      rollBtn.disabled = !canRoll;
+      if (!isOnline || !isSnapshotSynced) {
+        rollBtnText.textContent = '연결 확인 중...';
+      } else if (isRollingRequestInFlight) {
+        rollBtnText.textContent = '주사위 굴리는 중...';
+      } else if (isMyTurn) {
+        rollBtnText.textContent = '주사위 굴리기';
+      } else {
+        rollBtnText.textContent = `${currentTurnPlayer.name} 차례 대기`;
+      }
+
+      // 4) 주사위 눈 및 애니메이션 동기화
+      const lastRoll = data.lastRoll;
+      const cube = document.getElementById('dice-cube');
+      const numText = document.getElementById('dice-number-text');
+      const lastRollerEl = document.getElementById('dice-last-roller');
+
+      if (lastRoll && lastRoll.value) {
+        if (lastAnimatedRollId !== lastRoll.id) {
+          lastAnimatedRollId = lastRoll.id;
+          cube.className = 'dice-cube rolling';
+          setTimeout(() => {
+            cube.className = `dice-cube show-${lastRoll.value}`;
+            numText.textContent = String(lastRoll.value);
+            lastRollerEl.textContent = `${lastRoll.name} 결과`;
+          }, 550);
+        } else if (!cube.classList.contains('rolling')) {
+          cube.className = `dice-cube show-${lastRoll.value}`;
+          numText.textContent = String(lastRoll.value);
+          lastRollerEl.textContent = `${lastRoll.name} 결과`;
+        }
+      } else {
+        cube.className = 'dice-cube show-1';
+        numText.textContent = '-';
+        lastRollerEl.textContent = '아직 굴리지 않았어요';
+      }
+
+      // 5) 최근 5회 결과 렌더링 ('참가자 2 — 5' 형식)
+      const historyList = document.getElementById('dice-history-list');
+      const history = Array.isArray(data.rollHistory) ? data.rollHistory.slice(0, 5) : [];
+      if (history.length === 0) {
+        historyList.innerHTML = `
+          <div class="text-center text-slate-400 font-bold py-8">
+            주사위를 굴리면 여기에 기록이 나타나요!
+          </div>
+        `;
+      } else {
+        historyList.innerHTML = history.map((item, idx) => `
+          <div class="flex items-center justify-between px-4 py-3 rounded-2xl ${idx === 0 ? 'bg-amber-50 border-2 border-amber-300' : 'bg-slate-50 border border-slate-200'}">
+            <span class="font-jua text-xl sm:text-2xl text-slate-800">
+              ${item.name} — <span class="text-sky-600">${item.value}</span>
+            </span>
+            ${idx === 0 ? '<span class="text-xs font-black bg-amber-400 text-amber-950 px-2.5 py-1 rounded-full">방금 나옴</span>' : ''}
+          </div>
+        `).join('');
+      }
+    }
+
+    async function rollDiceAtomic() {
+      if (!currentRoomCode || !isOnline || !isSnapshotSynced || isRollingRequestInFlight) return;
+
+      isRollingRequestInFlight = true;
+      const rollBtn = document.getElementById('btn-roll-dice');
+      rollBtn.disabled = true;
+      document.getElementById('btn-roll-text').textContent = '주사위 굴리는 중...';
+
+      try {
+        const roomRef = getRoomRef(currentRoomCode);
+
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(roomRef);
+          if (!snap.exists()) throw new Error('방이 없습니다.');
+          const data = snap.data();
+
+          if (data.status !== 'dice') {
+            throw new Error('주사위 게임 진행 중이 아닙니다.');
+          }
+
+          const activePlayersMap = new Map(
+            (data.players || []).filter(p => p.active).map(p => [p.participantId, p])
+          );
+          const turnOrder = (data.turnOrder || []).filter(pid => activePlayersMap.has(pid));
+          if (turnOrder.length === 0) return;
+
+          const currentTurnIdx = (data.currentTurnIndex || 0) % turnOrder.length;
+          const expectedPid = turnOrder[currentTurnIdx];
+
+          // 서버/DB 레벨 엄격 검증: 현재 차례 참가자 본인인지 확인 (중복 터치 및 동시 요청 차단)
+          if (expectedPid !== myParticipantId) {
+            throw new Error('NOT_YOUR_TURN');
+          }
+
+          const roller = activePlayersMap.get(myParticipantId);
+          // 1~6 균등 확률 난수 생성
+          const diceValue = getSecureRandomInt(6) + 1;
+          const nextRollCount = (data.rollCount || 0) + 1;
+          const nextTurnIdx = (currentTurnIdx + 1) % turnOrder.length;
+
+          const rollRecord = {
+            id: `roll_${nextRollCount}_${Date.now()}`,
+            participantId: myParticipantId,
+            name: roller.name,
+            value: diceValue
+          };
+
+          const prevHistory = Array.isArray(data.rollHistory) ? data.rollHistory : [];
+          const updatedHistory = [
+            { participantId: myParticipantId, name: roller.name, value: diceValue },
+            ...prevHistory
+          ].slice(0, 5);
+
+          tx.update(roomRef, {
+            rollCount: nextRollCount,
+            currentTurnIndex: nextTurnIdx,
+            lastRoll: rollRecord,
+            rollHistory: updatedHistory,
+            updatedAt: serverTimestamp()
+          });
+        });
+      } catch (err) {
+        if (err.message !== 'NOT_YOUR_TURN') {
+          console.error('주사위 굴리기 오류:', err);
+        }
+      } finally {
+        isRollingRequestInFlight = false;
+        if (latestRoomData && latestRoomData.status === 'dice') {
+          renderDiceView(latestRoomData);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 10. 방 나가기 (순서 유지, 차례 승계, 방장 위임, 전원 퇴장 시 방 닫기)
+    // =========================================================================
+    function confirmLeaveRoom() {
+      showModal({
+        icon: '🚪',
+        title: '방에서 나갈까요?',
+        message: '나가면 지금 진행 중인 방에서 제외돼요. 정말 나갈까요?',
+        confirmText: '네, 나갈래요',
+        cancelText: '계속할래요',
+        onConfirm: executeLeaveRoom
+      });
+    }
+
+    async function executeLeaveRoom() {
+      if (!currentRoomCode) {
+        clearRoomSessionAndGoHome();
+        return;
+      }
+
+      const leavingRoomCode = currentRoomCode;
+      try {
+        const roomRef = getRoomRef(leavingRoomCode);
+
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(roomRef);
+          if (!snap.exists()) return;
+          const data = snap.data();
+
+          const players = Array.isArray(data.players) ? [...data.players] : [];
+          const meIdx = players.findIndex(p => p.participantId === myParticipantId);
+          if (meIdx === -1 || !players[meIdx].active) return;
+
+          // 해당 참가자를 비활성 처리
+          players[meIdx] = { ...players[meIdx], active: false, leftAt: Date.now() };
+          const remainingActive = players.filter(p => p.active);
+
+          // 전원이 나간 경우 방을 닫음
+          if (remainingActive.length === 0) {
+            tx.update(roomRef, {
+              players,
+              status: 'closed',
+              turnOrder: [],
+              updatedAt: serverTimestamp()
+            });
+            return;
+          }
+
+          // 방장이 나간 경우 가장 먼저 입장한 남은 참가자에게 방장 위임
+          let nextHostId = data.hostId;
+          if (data.hostId === myParticipantId) {
+            const sortedByJoin = [...remainingActive].sort((a, b) => (a.joinIndex || 0) - (b.joinIndex || 0));
+            nextHostId = sortedByJoin[0].participantId;
+          }
+
+          // 순서 및 현재 차례 승계 계산
+          const oldTurnOrder = Array.isArray(data.turnOrder) ? [...data.turnOrder] : [];
+          let newTurnOrder = oldTurnOrder.filter(pid => pid !== myParticipantId);
+          let newTurnIndex = data.currentTurnIndex || 0;
+
+          if (oldTurnOrder.length > 0 && newTurnOrder.length > 0) {
+            const oldSafeIdx = newTurnIndex % oldTurnOrder.length;
+            const leavingOrderPos = oldTurnOrder.indexOf(myParticipantId);
+
+            if (leavingOrderPos !== -1) {
+              if (leavingOrderPos < oldSafeIdx) {
+                // 나보다 앞 순서 사람이 나갔으므로 현재 차례 인덱스를 1 당겨 동일인 유지
+                newTurnIndex = (oldSafeIdx - 1) % newTurnOrder.length;
+              } else if (leavingOrderPos === oldSafeIdx) {
+                // 현재 내 차례였다면 기존 순서상 바로 다음 남은 참가자가 같은 인덱스를 물려받음
+                newTurnIndex = oldSafeIdx % newTurnOrder.length;
+              } else {
+                // 내 뒤 순서 사람이 나갔으므로 현재 차례 인덱스 그대로 유지
+                newTurnIndex = oldSafeIdx % newTurnOrder.length;
+              }
+            } else {
+              newTurnIndex = newTurnIndex % newTurnOrder.length;
+            }
+          } else {
+            newTurnIndex = 0;
+          }
+
+          tx.update(roomRef, {
+            players,
+            hostId: nextHostId,
+            turnOrder: newTurnOrder,
+            currentTurnIndex: newTurnIndex,
+            updatedAt: serverTimestamp()
+          });
+        });
+      } catch (err) {
+        console.error('방 나가기 처리 오류:', err);
+      } finally {
+        clearRoomSessionAndGoHome();
+      }
+    }
+
+    // =========================================================================
+    // 11. 숫자 키패드 입력 제어
+    // =========================================================================
+    let enteredPin = '';
+
+    function updatePinDisplay() {
+      const boxes = document.querySelectorAll('#pin-display .pin-box');
+      boxes.forEach((box, idx) => {
+        const ch = enteredPin[idx] || '';
+        box.textContent = ch;
+        if (ch) {
+          box.classList.add('border-emerald-500', 'bg-emerald-50');
+          box.classList.remove('border-slate-300', 'bg-slate-50');
+        } else {
+          box.classList.remove('border-emerald-500', 'bg-emerald-50');
+          box.classList.add('border-slate-300', 'bg-slate-50');
+        }
+      });
+      document.getElementById('btn-submit-join').disabled = enteredPin.length !== 4;
+    }
+
+    function resetPinInput() {
+      enteredPin = '';
+      hideJoinError();
+      updatePinDisplay();
+    }
+
+    function showJoinError(msg) {
+      const box = document.getElementById('join-error-box');
+      box.textContent = msg;
+      box.classList.remove('hidden');
+    }
+
+    function hideJoinError() {
+      document.getElementById('join-error-box').classList.add('hidden');
+    }
+
+    document.querySelectorAll('.keypad-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (enteredPin.length < 4) {
+          enteredPin += btn.dataset.key;
+          hideJoinError();
+          updatePinDisplay();
+        }
+      });
+    });
+
+    document.getElementById('key-del').addEventListener('click', () => {
+      if (enteredPin.length > 0) {
+        enteredPin = enteredPin.slice(0, -1);
+        hideJoinError();
+        updatePinDisplay();
+      }
+    });
+
+    document.getElementById('key-clear').addEventListener('click', () => {
+      resetPinInput();
+    });
+
+    // 물리 키보드 숫자 입력도 지원
+    window.addEventListener('keydown', (e) => {
+      if (views.join.classList.contains('hidden')) return;
+      if (e.key >= '0' && e.key <= '9' && enteredPin.length < 4) {
+        enteredPin += e.key;
+        hideJoinError();
+        updatePinDisplay();
+      } else if (e.key === 'Backspace') {
+        enteredPin = enteredPin.slice(0, -1);
+        hideJoinError();
+        updatePinDisplay();
+      } else if (e.key === 'Enter' && enteredPin.length === 4) {
+        joinRoomByCode(enteredPin);
+      }
+    });
+
+    // =========================================================================
+    // 12. 버튼 이벤트 바인딩 및 앱 부트스트랩
+    // =========================================================================
+    document.getElementById('btn-create-room').addEventListener('click', createRoom);
+    document.getElementById('btn-go-join').addEventListener('click', () => {
+      resetPinInput();
+      showView('join');
+    });
+    document.getElementById('btn-back-home').addEventListener('click', () => {
+      resetPinInput();
+      showView('home');
+    });
+    document.getElementById('btn-submit-join').addEventListener('click', () => {
+      if (enteredPin.length === 4) {
+        joinRoomByCode(enteredPin);
+      }
+    });
+    document.getElementById('btn-leave-room').addEventListener('click', confirmLeaveRoom);
+    document.getElementById('btn-start-ladder').addEventListener('click', startLadderGame);
+    document.getElementById('btn-start-dice').addEventListener('click', startDiceStage);
+    document.getElementById('btn-roll-dice').addEventListener('click', rollDiceAtomic);
+
+    // 앱 시작: 익명 인증 후 기존 진행 중인 방 세션이 있다면 자동 복귀
+    async function bootstrapApp() {
+      try {
+        let userCred;
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          userCred = await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          userCred = await signInAnonymously(auth);
+        }
+        currentUser = userCred.user;
+
+        // 새로고침 복귀 확인
+        if (currentRoomCode) {
+          const snap = await getDoc(getRoomRef(currentRoomCode));
+          if (snap.exists()) {
+            const data = snap.data();
+            const me = (data.players || []).find(p => p.participantId === myParticipantId && p.active);
+            if (data.status !== 'closed' && me) {
+              enterRoomSession(currentRoomCode);
+              return;
+            }
+          }
+          // 유효하지 않은 이전 방 세션 정리
+          sessionStorage.removeItem(SESSION_KEY_ROOM);
+          currentRoomCode = null;
+        }
+
+        showView('home');
+      } catch (err) {
+        console.error('인증 초기화 오류:', err);
+        showView('home');
+        showModal({
+          icon: '⚠️',
+          title: '연결 안내',
+          message: '서버 연결 설정을 확인해 주세요. 인터넷이 연결되어 있는지 확인 후 새로고침해 주세요.'
+        });
+      }
+    }
+
+    bootstrapApp();
+  </script>
+</body>
+</html>
